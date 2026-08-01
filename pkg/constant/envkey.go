@@ -2,6 +2,7 @@ package constant
 //放环境变量名。
 
 const (
+	EnvKeyPort = "PORT"
 	EnvKeyDBDriver = "DB_DRIVER"
     EnvKeyJWTSecret = "JWT_SECRET"
     EnvKeyCaptchaProvider = "CAPTCHA_PROVIDER"

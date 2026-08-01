@@ -5,7 +5,8 @@ import (
         "os"
         "path/filepath"
 
-        "github.com/zyj/my-blog/pkg/constant"
+	        "github.com/zyj/my-blog/internal/model"
+	        "github.com/zyj/my-blog/pkg/constant"
         "github.com/zyj/my-blog/pkg/utils"
         "gorm.io/driver/postgres"
         "gorm.io/driver/sqlite"
@@ -98,5 +99,5 @@ type DBConfig struct {
   }
 
   func migrate() error {
-        return nil
+	        return db.AutoMigrate(&model.User{})
   }

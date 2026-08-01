@@ -3,8 +3,6 @@ package main
 import (
 	"github.com/zyj/my-blog/internal/repo"
     "github.com/zyj/my-blog/internal/router"
-    "github.com/zyj/my-blog/internal/tasks"
-    "github.com/zyj/my-blog/pkg/cache"
 )
 
 func main(){
@@ -23,10 +21,11 @@ func main(){
 	//    避免等到用户上传文件时才报错，提前拦截启动阶段异常
 	// 3. 全局只初始化一次，后续上传接口直接调用已经准备好的存储实例，不需要每次请求重复创建
 	// 4. 统一封装，业务handler只调用统一接口 SaveFile / GetFile，底层存储实现可以无缝切换
-	tasks.InitStorageProvider()
+	// tasks.InitStorageProvider()
 
-	cache.InitFileCache()
+	// cache.InitFileCache()
 
-	router.Run()
+	if err := router.Run(); err != nil {
+		panic(err)
+	}
 }
-	
