@@ -1,0 +1,11 @@
+{
+    "Common": {
+      "siteName": "我的博客",
+      "save": "保存",
+      "cancel": "取消"
+    },
+    "Home": {
+      "title": "欢迎来到我的博客",
+      "description": "记录技术、生活与思考"
+    }
+  }
