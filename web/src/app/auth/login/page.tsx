@@ -1,8 +1,10 @@
+'use client'
+
 import type { FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { login } from '@/lib/api/user'
+import { useAuth } from '@/contexts/auth-context'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -10,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const { login } = useAuth()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

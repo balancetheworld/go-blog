@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { NextIntlClientProvider } from 'next-intl'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
+import { AuthProvider } from '@/contexts/auth-context'
 
 interface ProvidersProps {
   children: ReactNode
@@ -21,13 +22,15 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
-        <Toaster
-          theme="system"
-          position="top-right"
-          richColors
-          closeButton
-        />
+        <AuthProvider>
+          {children}
+          <Toaster
+            theme="system"
+            position="top-right"
+            richColors
+            closeButton
+          />
+        </AuthProvider>
       </ThemeProvider>
     </NextIntlClientProvider>
   )

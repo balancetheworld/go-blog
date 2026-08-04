@@ -49,3 +49,41 @@ type CreateUserRequest struct {
         Page     int            `json:"page"`
         PageSize int            `json:"page_size"`
   }
+
+  type UserDto = UserResponse
+
+   type UserLoginReq struct {
+        Account   string `json:"account" vd:"len($) >= 3"`
+        Password  string `json:"password" vd:"len($) >= 8 && len($) <= 72"`
+        Remember  bool   `json:"remember"`
+        UserIP    string `json:"-"`
+        UserAgent string `json:"-"`
+  }
+
+  type UserAuthResponse struct {
+        User         UserPrivateResponse `json:"user"`
+        AccessToken  string              `json:"-"`
+        RefreshToken string              `json:"-"`
+        AccessMaxAge int                 `json:"-"`
+        RefreshMaxAge int                `json:"-"`
+  }
+
+  type UserRegisterReq struct {
+        Username  string `json:"username" vd:"len($) >= 3 && len($) <= 32"`
+        Email     string `json:"email" vd:"email($)"`
+        Password  string `json:"password" vd:"len($) >= 8 && len($) <= 72"`
+        Nickname  string `json:"nickname,omitempty" vd:"len($) <= 64"`
+        Code      string `json:"code,omitempty"`
+        Remember  bool   `json:"remember"`
+        UserIP    string `json:"-"`
+        UserAgent string `json:"-"`
+  }
+
+type VerifyEmailReq struct {
+	Email string `json:"email" vd:"email($)"`
+}
+
+type UpdatePasswordReq struct {
+	OldPassword string `json:"old_password" vd:"len($) >= 8 && len($) <= 72"`
+	NewPassword string `json:"new_password" vd:"len($) >= 8 && len($) <= 72"`
+}

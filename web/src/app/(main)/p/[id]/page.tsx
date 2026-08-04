@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { CommentInput } from '@/components/comment/comment-input'
 import {
   getPublicPost,
   PostUnavailableError,
@@ -65,5 +66,10 @@ export default async function PostPage({
     notFound()
   }
 
-  return <BlogPost post={post} />
+  return (
+    <>
+      <BlogPost post={post} />
+      <CommentInput />
+    </>
+  )
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import { UserNavigation } from '@/components/layout/user-navigation'
 
 interface MainLayoutProps {
   children: ReactNode
@@ -25,6 +26,7 @@ export default function MainLayout({
             <Link href="/diaries">日记</Link>
             <Link href="/about">关于</Link>
           </nav>
+          <UserNavigation />
         </div>
       </header>
 

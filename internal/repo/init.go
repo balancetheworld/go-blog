@@ -99,5 +99,8 @@ type DBConfig struct {
   }
 
   func migrate() error {
-	        return db.AutoMigrate(&model.User{})
+	        return db.AutoMigrate( //GORM 提供的自动数据库迁移工具，作用：根据你传入的 `model` 结构体，自动在 MySQL 里**创建 / 更新数据表**，不用手写建表 SQL。
+                        &model.User{},
+                        &model.Session{},
+                )
   }
