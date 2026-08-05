@@ -14,31 +14,32 @@ type TargetType string
 
 // 角色枚举常量
 const (
-	RoleUser   Role = "user"    // 普通用户
-	RoleEditor Role = "editor"  // 编辑者，拥有内容编辑权限
-	RoleAdmin  Role = "admin"   // 管理员，最高权限
+	RoleGuest  Role = "guest"
+	RoleUser   Role = "user"   // 普通用户
+	RoleEditor Role = "editor" // 编辑者，拥有内容编辑权限
+	RoleAdmin  Role = "admin"  // 管理员，最高权限
 )
 
 // 程序运行模式枚举
 const (
-	ModeDev  Mode = "dev"   // 开发模式：开启调试日志、热更新、允许更多调试接口
-	ModeProd Mode = "prod"  // 生产模式：关闭调试，严格安全校验，优化性能
+	ModeDev  Mode = "dev"  // 开发模式：开启调试日志、热更新、允许更多调试接口
+	ModeProd Mode = "prod" // 生产模式：关闭调试，严格安全校验，优化性能
 )
 
 // 验证码方案枚举
 const (
-	CaptchaDisable   CaptchaType = "disable"    // 禁用验证码，本地开发常用
-	CaptchaTurnstile CaptchaType = "turnstile"  // Cloudflare Turnstile 人机验证
-	CaptchaRecaptcha CaptchaType = "recaptcha"  // Google reCAPTCHA
-	CaptchaHcaptcha  CaptchaType = "hcaptcha"   // hCaptcha 验证
+	CaptchaDisable   CaptchaType = "disable"   // 禁用验证码，本地开发常用
+	CaptchaTurnstile CaptchaType = "turnstile" // Cloudflare Turnstile 人机验证
+	CaptchaRecaptcha CaptchaType = "recaptcha" // Google reCAPTCHA
+	CaptchaHcaptcha  CaptchaType = "hcaptcha"  // hCaptcha 验证
 )
 
 // 业务资源目标类型枚举
 const (
-	TargetPost    TargetType = "post"     // 博客文章
-	TargetPage    TargetType = "page"     // 独立页面
-	TargetComment TargetType = "comment"  // 评论
-	TargetDiary   TargetType = "diary"    // 日记
+	TargetPost    TargetType = "post"    // 博客文章
+	TargetPage    TargetType = "page"    // 独立页面
+	TargetComment TargetType = "comment" // 评论
+	TargetDiary   TargetType = "diary"   // 日记
 )
 
 // APIPrefix 全局API路由统一前缀

@@ -11,6 +11,10 @@ const (
 	EnvKeyRefreshTokenDurationWithRemember = "REFRESH_TOKEN_DURATION_WITH_REMEMBER"
 	EnvKeyEnableRegister                   = "ENABLE_REGISTER"
 	EnvKeyCaptchaProvider                  = "CAPTCHA_PROVIDER"
+	EnvKeyCaptchaDevPasscode               = "CAPTCHA_DEV_PASSCODE"
+	EnvKeyCaptchaSiteKey                   = "CAPTCHA_SITE_KEY"
+	EnvKeyCaptchaSecretKey                 = "CAPTCHA_SECRET_KEY"
+	EnvKeyCaptchaURL                       = "CAPTCHA_URL"
 	EnvKeyDBSQLitePath                     = "DB_SQLITE_PATH"
 	EnvKeyDBHost                           = "DB_HOST"
 	EnvKeyDBPort                           = "DB_PORT"
@@ -27,4 +31,7 @@ const (
 	EnvKeyEmailPort                        = "EMAIL_PORT"
 	EnvKeyEmailSSL                         = "EMAIL_SSL"
 	EnvKeyEnableEmailVerify                = "ENABLE_EMAIL_VERIFY"
+	EnvKeyRedisAddr                        = "REDIS_ADDR"
+	EnvKeyRedisPassword                    = "REDIS_PASSWORD"
+	EnvKeyRedisDB                          = "REDIS_DB"
 )

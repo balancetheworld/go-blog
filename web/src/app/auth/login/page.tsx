@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Captcha } from '@/components/auth/captcha'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function LoginPage() {
@@ -12,6 +13,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaRequired, setCaptchaRequired] = useState(true)
   const { login } = useAuth()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -23,6 +26,7 @@ export default function LoginPage() {
         account,
         password,
         rememberMe,
+        captchaToken: captchaToken || undefined,
       })
       toast.success('登录成功')
       router.replace('/')
@@ -79,13 +83,14 @@ export default function LoginPage() {
           记住我
         </label>
 
-        <div>
-          人机验证暂未启用
-        </div>
+        <Captcha
+          onTokenChange={setCaptchaToken}
+          onRequiredChange={setCaptchaRequired}
+        />
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || (captchaRequired && !captchaToken)}
         >
           {submitting ? '登录中...' : '登录'}
         </button>

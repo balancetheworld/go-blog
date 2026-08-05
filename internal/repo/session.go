@@ -59,3 +59,13 @@ func IsSessionValidForUser(ctx context.Context, sessionID string, userID uint) (
 
         return session, err
   }
+
+  func RevokeSessionsByUserID(ctx context.Context, userID uint) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+	return db.WithContext(ctx).
+			Where("user_id = ?", userID).
+			Delete(&model.Session{}).
+			Error
+  }

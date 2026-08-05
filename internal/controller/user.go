@@ -6,8 +6,12 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/zyj/my-blog/internal/dto"
+	"github.com/zyj/my-blog/internal/middleware"
+	"github.com/zyj/my-blog/internal/repo"
 	"github.com/zyj/my-blog/internal/service"
+	"github.com/zyj/my-blog/pkg/constant"
 	"github.com/zyj/my-blog/pkg/resps"
+	"github.com/zyj/my-blog/pkg/utils"
 )
 
 func ListUsers(ctx context.Context, c *app.RequestContext) {
@@ -94,3 +98,177 @@ func DeleteUser(ctx context.Context, c *app.RequestContext) {
 
         resps.Ok(c, resps.Success, nil)
   }
+
+func Login(ctx context.Context, c *app.RequestContext) {
+	var req dto.UserLoginReq
+	if err := c.BindAndValidate(&req); err != nil {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+	req.UserIP = c.ClientIP()
+	req.UserAgent = string(c.UserAgent())
+
+	result, err := service.UserLogin(ctx, &req)
+	if err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	middleware.SetTokenCookies(
+		c,
+		result.AccessToken,
+		result.RefreshToken,
+		result.AccessMaxAge,
+		result.RefreshMaxAge,
+	)
+	resps.Ok(c, resps.Success, result.User)
+}
+
+func Register(ctx context.Context, c *app.RequestContext) {
+	var req dto.UserRegisterReq
+	if err := c.BindAndValidate(&req); err != nil {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+	req.UserIP = c.ClientIP()
+	req.UserAgent = string(c.UserAgent())
+
+	result, err := service.UserRegister(ctx, &req)
+	if err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	middleware.SetTokenCookies(
+		c,
+		result.AccessToken,
+		result.RefreshToken,
+		result.AccessMaxAge,
+		result.RefreshMaxAge,
+	)
+	resps.Ok(c, resps.Success, result.User)
+}
+
+func Logout(ctx context.Context, c *app.RequestContext) {
+	sessionID, ok := middleware.GetCurrentSessionID(c)
+	middleware.ClearTokenCookies(c)
+	if !ok {
+		resps.Unauthorized(c, resps.ErrUnauthorized)
+		return
+	}
+
+	if err := repo.RevokeSession(ctx, sessionID); err != nil {
+		resps.InternalServerError(c, "logout failed")
+		return
+	}
+
+	resps.Ok(c, resps.Success, nil)
+}
+
+func GetLoginUser(ctx context.Context, c *app.RequestContext) {
+	role := middleware.GetCurrentRole(c)
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		resps.Ok(c, resps.Success, dto.LoginUserResponse{
+			User: nil,
+			Role: constant.RoleGuest,
+		})
+		return
+	}
+
+	user, err := service.GetUser(ctx, uint64(userID))
+	if err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	resps.Ok(c, resps.Success, dto.LoginUserResponse{
+		User: &user,
+		Role: role,
+	})
+}
+
+func VerifyEmail(ctx context.Context, c *app.RequestContext) {
+	var req dto.VerifyEmailReq
+	if err := c.BindAndValidate(&req); err != nil {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+
+	if err := service.RequestVerifyEmail(ctx, &req); err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	resps.Ok(c, resps.Success, nil)
+}
+
+func ChangePassword(ctx context.Context, c *app.RequestContext) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		resps.Unauthorized(c, resps.ErrUnauthorized)
+		return
+	}
+
+	var req dto.UpdatePasswordReq
+	if err := c.BindAndValidate(&req); err != nil {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+
+	if err := service.UpdatePassword(ctx, userID, &req); err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	resps.Ok(c, resps.Success, nil)
+}
+
+func ResetPassword(ctx context.Context, c *app.RequestContext) {
+	var req dto.ResetPasswordReq
+	if err := c.BindAndValidate(&req); err != nil {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+
+	if err := service.ResetPassword(ctx, &req); err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	resps.Ok(c, resps.Success, nil)
+}
+
+func ChangeEmail(ctx context.Context, c *app.RequestContext) {
+	userID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		resps.Unauthorized(c, resps.ErrUnauthorized)
+		return
+	}
+
+	var req dto.UpdateEmailReq
+	if err := c.BindAndValidate(&req); err != nil {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+
+	if err := service.UpdateEmail(ctx, userID, &req); err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	resps.Ok(c, resps.Success, nil)
+}
+
+func GetCaptchaConfig(ctx context.Context, c *app.RequestContext) {
+	provider := constant.CaptchaType(
+		utils.Get(
+			constant.EnvKeyCaptchaProvider,
+			string(constant.CaptchaDisable),
+		),
+	)
+	resps.Ok(c, resps.Success, dto.CaptchaConfigResponse{
+		Provider: provider,
+		SiteKey: utils.Get(constant.EnvKeyCaptchaSiteKey),
+	})
+}

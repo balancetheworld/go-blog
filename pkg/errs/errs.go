@@ -40,6 +40,10 @@ func NewConflict(code int, message string) *ServiceError {
 	return newServiceError(code, http.StatusConflict, message)
 }
 
+func NewTooManyRequests(code int, message string) *ServiceError {
+	return newServiceError(code, http.StatusTooManyRequests, message)
+}
+
 func NewInternalServer(code int, message string) *ServiceError {
 	return newServiceError(code, http.StatusInternalServerError, message)
 }

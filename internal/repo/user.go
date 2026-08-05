@@ -3,9 +3,43 @@ package repo
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/zyj/my-blog/internal/model"
+	"github.com/zyj/my-blog/pkg/constant"
+        "gorm.io/gorm"
 )
+
+var registrationMu sync.Mutex
+
+func RegisterUserWithSession( ctx context.Context, user *model.User, session *model.Session) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	registrationMu.Lock()
+	defer registrationMu.Unlock()
+
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+                var userCount int64
+                if err := tx.Model(&model.User{}).Count(&userCount).Error; err != nil {
+                        return err
+                }
+
+                user.Role = constant.RoleUser
+                if userCount == 0 {
+                        user.Role = constant.RoleAdmin
+                }
+
+                if err := tx.Create(user).Error; err != nil {
+                        return err
+                }
+
+                session.UserID = user.ID
+
+                return tx.Create(session).Error
+        })
+}
 
 func UserExists(ctx context.Context, username, email string) (bool, error) {
 	if db == nil {

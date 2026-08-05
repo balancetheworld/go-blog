@@ -1,0 +1,64 @@
+'use client'
+
+import type { CaptchaConfig } from '@/models/user'
+import { Turnstile } from '@marsidev/react-turnstile'
+import { useEffect, useState } from 'react'
+import { getCaptchaConfig } from '@/api/user'
+
+interface CaptchaProps {
+  onTokenChange: (token: string) => void
+  onRequiredChange: (required: boolean) => void
+}
+
+export function Captcha({
+  onTokenChange,
+  onRequiredChange,
+}: CaptchaProps) {
+  const [config, setConfig] = useState<CaptchaConfig | null>(null)
+  const [loadFailed, setLoadFailed] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    void getCaptchaConfig()
+      .then((result) => {
+        if (!active)
+          return
+
+        setConfig(result)
+        onRequiredChange(result.provider !== 'disable')
+      })
+      .catch(() => {
+        if (!active)
+          return
+
+        setLoadFailed(true)
+        onRequiredChange(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [onRequiredChange])
+
+  if (loadFailed)
+    return <p role="alert">人机验证加载失败</p>
+
+  if (config === null)
+    return <p>正在加载人机验证</p>
+
+  if (config.provider === 'disable')
+    return null
+
+  if (config.provider !== 'turnstile' || !config.siteKey)
+    return <p role="alert">当前人机验证配置不可用</p>
+
+  return (
+    <Turnstile
+      siteKey={config.siteKey}
+      onSuccess={onTokenChange}
+      onExpire={() => onTokenChange('')}
+      onError={() => onTokenChange('')}
+    />
+  )
+}
