@@ -99,8 +99,29 @@ type DBConfig struct {
   }
 
   func migrate() error {
-	        return db.AutoMigrate( //GORM 提供的自动数据库迁移工具，作用：根据你传入的 `model` 结构体，自动在 MySQL 里**创建 / 更新数据表**，不用手写建表 SQL。
+	        if err := db.AutoMigrate( //GORM 提供的自动数据库迁移工具，作用：根据你传入的 `model` 结构体，自动在 MySQL 里**创建 / 更新数据表**，不用手写建表 SQL。
                         &model.User{},
                         &model.Session{},
-                )
+                        &model.Category{},
+			&model.Label{},
+                        &model.Post{},
+			&model.Comment{},
+		        ); err != nil {
+			return err
+		}
+
+		if err := db.Model(&model.Post{}).
+			Where("content <> ? AND published_at IS NULL", "").
+			UpdateColumn("published_at", gorm.Expr("created_at")).
+			Error; err != nil {
+			return err
+		}
+
+		return db.Model(&model.Post{}).
+			Where("id > ?", 0).
+			UpdateColumn(
+				"heat",
+				gorm.Expr("view_count + like_count * 3 + comment_count * 5"),
+			).
+			Error
   }

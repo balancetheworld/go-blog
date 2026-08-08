@@ -32,6 +32,7 @@ export default async function ConsoleLayout({
           className="mt-6 flex gap-4 md:flex-col"
         >
           <Link href="/console">控制台</Link>
+          <Link href="/console/posts">文章管理</Link>
         </nav>
       </aside>
 

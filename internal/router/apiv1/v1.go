@@ -7,4 +7,6 @@ func RegisterRoutes(group *route.RouterGroup) {
     // 把子模块：用户相关路由注册到当前路由分组下
 	// user 模块
     registerUserRoutes(group)
+    registerPostRoutes(group)
+	registerCommentRoutes(group)
 }

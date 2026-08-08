@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { CommentInput } from '@/components/comment/comment-input'
 import {
-  getPublicPost,
-  PostUnavailableError,
-} from '@/lib/api/post'
+  getPost,
+  PostServerError,
+} from '@/api/post.server'
+import { CommentSection } from '@/components/comment/comment-section'
 import { BlogPost } from './blog-post'
 
 // 定义页面组件入参的TS接口 PostPageProps
@@ -21,19 +21,13 @@ export async function generateMetadata({
   // 新版Next.js params是Promise，必须await解析，拿到路径里的文章id
   const { id } = await params
 
-  // 正则校验id是否为合法正整数（不能以0开头、只能数字）
-  // ^\[1-9\] 首位1-9，\\d\* 后面任意数字，$结尾
-  if (!/^[1-9]\d*$/.test(id)) {
-    // id格式非法，返回空元数据，使用网站默认SEO
-    return {}
-  }
   try {
-    const post = await getPublicPost(id)
+    const post = await getPost(id)
 
     return post
       ? {
           title: post.title,
-          description: post.content.slice(0, 120),
+          description: post.description,
         }
       : {}
   }
@@ -46,17 +40,28 @@ export default async function PostPage({
   params,
 }: PostPageProps) {
   const { id } = await params
-  if (!/^[1-9]\d*$/.test(id)) {
-    notFound()
-  }
 
   let post
   try {
-    post = await getPublicPost(id)
+    post = await getPost(id)
   }
   catch (error) {
-    if (error instanceof PostUnavailableError) {
+    if (error instanceof PostServerError && error.status === 404) {
       notFound()
+    }
+
+    if (
+      error instanceof PostServerError
+      && (error.status === 401 || error.status === 403)
+    ) {
+      return (
+        <section className="border-y border-black/10 py-12 dark:border-white/10">
+          <h1 className="text-2xl font-semibold">无权访问这篇文章</h1>
+          <p className="mt-3 text-neutral-600 dark:text-neutral-400">
+            请使用有权限的账号登录后重试。
+          </p>
+        </section>
+      )
     }
 
     throw error
@@ -69,7 +74,7 @@ export default async function PostPage({
   return (
     <>
       <BlogPost post={post} />
-      <CommentInput />
+      <CommentSection postID={post.id} postAuthorID={post.author.id} />
     </>
   )
 }

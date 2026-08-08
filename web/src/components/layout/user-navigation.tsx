@@ -17,21 +17,21 @@ export function UserNavigation() {
 
   if (!currentUser) {
     return (
-      <div className="flex items-center gap-4">
-        <Link href="/auth/login">登录</Link>
-        <Link href="/auth/register">注册</Link>
+      <div className="flex items-center gap-3 text-sm">
+        <Link href="/auth/login" className="font-medium">登录</Link>
+        <Link href="/auth/register" className="font-medium">注册</Link>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <span>
+    <div className="flex items-center gap-3 text-sm">
+      <span className="max-w-32 truncate">
         {currentUser.nickname || currentUser.username}
       </span>
 
       {(currentRole === 'editor' || currentRole === 'admin') && (
-        <Link href="/console">
+        <Link href="/console" className="font-medium">
           管理后台
         </Link>
       )}
@@ -39,6 +39,7 @@ export function UserNavigation() {
       <button
         type="button"
         onClick={() => void logout()}
+        className="font-medium"
       >
         退出登录
       </button>
