@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/zyj/my-blog/internal/repo"
+	"github.com/zyj/my-blog/internal/service"
     "github.com/zyj/my-blog/internal/router"
 )
 
@@ -11,6 +12,9 @@ func main(){
 
 	//初始化数据库
 	if err := repo.InitDatabase(); err != nil {
+		panic(err)
+	}
+	if err := service.EnsureRootUser(context.Background()); err != nil {
 		panic(err)
 	}
 	if err := repo.InitRedis(context.Background()); err != nil {

@@ -90,12 +90,21 @@ func CreateUser(ctx context.Context, req dto.CreateUserRequest) (dto.UserPrivate
 		)
 	}
 
+	memberRole, err := repo.GetRoleByCode(ctx, constant.RoleCodeMember)
+	if err != nil {
+		return dto.UserPrivateResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get default role failed",
+		)
+	}
+
 	user := model.User{
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: string(passwordHash),
 		Nickname:     req.Nickname,
 		Role:         constant.RoleUser,
+		RoleID:       &memberRole.ID,
 	}
 
 	if err := repo.CreateUser(ctx, &user); err != nil {
@@ -160,6 +169,26 @@ func UpdateUser(ctx context.Context, id uint64, req dto.UpdateUserRequest) (dto.
 }
 
 func DeleteUser(ctx context.Context, id uint64) error {
+	user, err := repo.GetUserByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"user not found",
+		)
+	}
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get user failed",
+		)
+	}
+	if user.IsRoot {
+		return errs.NewForbidden(
+			http.StatusForbidden,
+			"root user cannot be deleted",
+		)
+	}
+
 	rowsAffected, err := repo.DeleteUser(ctx, id)
 	if err != nil {
 		return errs.NewInternalServer(
@@ -365,6 +394,25 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 		)
 	}
 
+	if req.RequestedRoleID != nil {
+		_, err := repo.GetRequestableRoleByID(
+			ctx,
+			*req.RequestedRoleID,
+		)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return dto.UserAuthResponse{}, errs.NewBadRequest(
+				http.StatusBadRequest,
+				"requested role is not available",
+			)
+		}
+		if err != nil {
+			return dto.UserAuthResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"get requested role failed",
+			)
+		}
+	}
+
 	if utils.GetAsBool(
 		constant.EnvKeyEnableEmailVerify,
 		true,
@@ -429,7 +477,19 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 	// 角色分配逻辑：第一个注册用户直接授予管理员权限，其余普通用户
 	// 8. repo层执行数据库插入，创建新用户记录
 	// 12. 会话写入sessions数据表，完成自动登录
-	if err := repo.RegisterUserWithSession(ctx, &user, &session); err != nil {
+	if err := repo.RegisterUserWithSession(
+		ctx,
+		&user,
+		&session,
+		req.RequestedRoleID,
+	); err != nil {
+		if errors.Is(err, repo.ErrRoleNotRequestable) {
+			return dto.UserAuthResponse{}, errs.NewBadRequest(
+				http.StatusBadRequest,
+				"requested role is not available",
+			)
+		}
+
 		return dto.UserAuthResponse{}, errs.NewInternalServer(
 			http.StatusInternalServerError,
 			"register user failed",

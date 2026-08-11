@@ -49,6 +49,7 @@ export interface RegisterReq {
   username: string
   nickname: string
   password: string
+  requestedRoleId?: number
   captchaToken?: string
 }
 

@@ -1,10 +1,12 @@
 'use client'
 
 import type { FormEvent } from 'react'
+import type { RoleOption } from '@/models/role'
 import axios from 'axios'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { getRequestableRoles } from '@/api/role'
 import {
   register,
   requestEmailVerify,
@@ -21,6 +23,32 @@ export default function RegisterPage() {
   const [sendingCode, setSendingCode] = useState(false)
   const [codeCooldown, setCodeCooldown] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const [roles, setRoles] = useState<RoleOption[]>([])
+  const [loadingRoles, setLoadingRoles] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadRoles() {
+      try {
+        const data = await getRequestableRoles()
+        if (!cancelled)
+          setRoles(data)
+      }
+      catch {
+        if (!cancelled)
+          toast.error('身份列表加载失败')
+      }
+      finally {
+        if (!cancelled)
+          setLoadingRoles(false)
+      }
+    }
+    void loadRoles()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (codeCooldown <= 0)
@@ -66,6 +94,9 @@ export default function RegisterPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
+    const requestedRoleValue = String(
+      formData.get('requestedRoleId') ?? '',
+    )
 
     setSubmitting(true)
 
@@ -77,6 +108,7 @@ export default function RegisterPage() {
         nickname: String(formData.get('nickname')),
         password: String(formData.get('password')),
         captchaToken: captchaToken || undefined,
+        requestedRoleId: requestedRoleValue ? Number(requestedRoleValue) : undefined,
       })
       await refreshUser()
 
@@ -151,6 +183,21 @@ export default function RegisterPage() {
           type="text"
           maxLength={64}
         />
+
+        <label htmlFor="requestedRoleId">申请身份</label>
+        <select
+          id="requestedRoleId"
+          name="requestedRoleId"
+          defaultValue=""
+          disabled={loadingRoles}
+        >
+          <option value="">普通访客</option>
+          {roles.map(role => (
+            <option key={role.id} value={role.id}>
+              {role.name}
+            </option>
+          ))}
+        </select>
 
         <label htmlFor="password">密码</label>
         <input
