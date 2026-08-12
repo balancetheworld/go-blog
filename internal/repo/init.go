@@ -124,6 +124,13 @@ func migrate() error {
 	}
 
 	if err := db.Model(&model.Post{}).
+		Where("is_private = ?", true).
+		UpdateColumn("visibility", constant.PostVisibilityPrivate).
+		Error; err != nil {
+		return err
+	}
+
+	if err := db.Model(&model.Post{}).
 		Where("content <> ? AND published_at IS NULL", "").
 		UpdateColumn("published_at", gorm.Expr("created_at")).
 		Error; err != nil {

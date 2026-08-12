@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetPostDetail(ctx context.Context, slugOrID string, viewerID uint, role constant.Role) (dto.PostDetailResponse, error) {
+func GetPostDetail(ctx context.Context, slugOrID string, viewerID uint, role constant.Role, viewerRoleID uint) (dto.PostDetailResponse, error) {
 	post, err := findPost(ctx, slugOrID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return dto.PostDetailResponse{}, errs.NewNotFound(
@@ -36,14 +36,14 @@ func GetPostDetail(ctx context.Context, slugOrID string, viewerID uint, role con
 	canManage := canManagePost(post, viewerID, role)
 
 	// 条件：帖子是私有 或者 帖子内容为空 ，并且 用户没有管理权限
-	if (post.IsPrivate || post.Content == "") && !canManage {
+	if !canViewPost(post, viewerID, role, viewerRoleID) {
 		// 返回空数据 + 404 未找到错误
 		return dto.PostDetailResponse{}, errs.NewNotFound(
 			http.StatusNotFound,
 			"post not found",
 		)
 	}
-	if !post.IsPrivate && post.Content != "" {
+	if resolvedPostVisibility(post) != constant.PostVisibilityPrivate && post.Content != "" {
 		if err := repo.IncrementPostViewCount(ctx, post.ID); err != nil {
 			return dto.PostDetailResponse{}, errs.NewInternalServer(
 				http.StatusInternalServerError,
@@ -90,6 +90,54 @@ func canManagePost(
 	return role == constant.RoleEditor &&
 		viewerID > 0 &&
 		post.AuthorID == viewerID
+}
+
+func resolvedPostVisibility(post model.Post) constant.PostVisibility {
+	if post.IsPrivate {
+		return constant.PostVisibilityPrivate
+	}
+
+	if post.Visibility == "" {
+		return constant.PostVisibilityPublic
+	}
+
+	return post.Visibility
+}
+
+func canViewPost(
+	post model.Post,
+	viewerID uint,
+	role constant.Role,
+	viewerRoleID uint,
+) bool {
+	if role == constant.RoleAdmin {
+		return true
+	}
+
+	if post.Content == "" {
+		return canManagePost(post, viewerID, role)
+	}
+
+	if viewerID > 0 && post.AuthorID == viewerID {
+		return true
+	}
+
+	switch resolvedPostVisibility(post) {
+	case constant.PostVisibilityPublic:
+		return true
+	case constant.PostVisibilityRoles:
+		if viewerRoleID == 0 {
+			return false
+		}
+
+		for _, visibleRole := range post.VisibleRoles {
+			if visibleRole.ID == viewerRoleID {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func toCategoryResponse(
@@ -145,6 +193,7 @@ func ListPosts(
 	req dto.PostListRequest,
 	viewerID uint,
 	role constant.Role,
+	viewerRoleID uint,
 ) (dto.PostListResponse, error) {
 	if req.Page == 0 {
 		req.Page = 1
@@ -164,6 +213,11 @@ func ListPosts(
 		Status:     "published",
 		Sort:       req.Sort,
 		PublicOnly: true,
+		ViewerID:   viewerID,
+		ViewerRoleID: viewerRoleID,
+	}
+	if role == constant.RoleAdmin {
+		filter.PublicOnly = false
 	}
 
 	if req.Status == "draft" || req.Status == "all" {
@@ -213,8 +267,16 @@ func ListPosts(
 
 func GetRandomPost(
 	ctx context.Context,
+	viewerID uint,
+	role constant.Role,
+	viewerRoleID uint,
 ) (dto.PostDetailResponse, error) {
-	post, err := repo.GetRandomPost(ctx, true)
+	post, err := repo.GetRandomPost(
+		ctx,
+		role != constant.RoleAdmin,
+		viewerID,
+		viewerRoleID,
+	)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return dto.PostDetailResponse{}, errs.NewNotFound(
 			http.StatusNotFound,
@@ -342,6 +404,55 @@ func resolvePostLabels(
 	return labels, nil
 }
 
+func resolvePostVisibleRoles(
+	ctx context.Context,
+	visibility constant.PostVisibility,
+	ids []uint,
+) ([]model.Role, error) {
+	if visibility != constant.PostVisibilityRoles {
+		return []model.Role{}, nil
+	}
+
+	uniqueIDs := make([]uint, 0, len(ids))
+	seen := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			return nil, errs.NewBadRequest(
+				http.StatusBadRequest,
+				"visible role not found",
+			)
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniqueIDs = append(uniqueIDs, id)
+	}
+
+	if len(uniqueIDs) == 0 {
+		return nil, errs.NewBadRequest(
+			http.StatusBadRequest,
+			"visible role is required",
+		)
+	}
+
+	roles, err := repo.GetEnabledRolesByIDs(ctx, uniqueIDs)
+	if err != nil {
+		return nil, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get visible roles failed",
+		)
+	}
+	if len(roles) != len(uniqueIDs) {
+		return nil, errs.NewBadRequest(
+			http.StatusBadRequest,
+			"visible role not found",
+		)
+	}
+
+	return roles, nil
+}
+
 func CreatePost(
         ctx context.Context,
         authorID uint,
@@ -373,6 +484,22 @@ func CreatePost(
 		}
 
 		labels, err := resolvePostLabels(ctx, req.LabelIDs)
+		if err != nil {
+			return dto.PostDetailResponse{}, err
+		}
+
+		visibility := req.Visibility
+		if req.IsPrivate {
+			visibility = constant.PostVisibilityPrivate
+		}
+		if visibility == "" {
+			visibility = constant.PostVisibilityPublic
+		}
+		visibleRoles, err := resolvePostVisibleRoles(
+			ctx,
+			visibility,
+			req.VisibleRoleIDs,
+		)
 		if err != nil {
 			return dto.PostDetailResponse{}, err
 		}
@@ -412,12 +539,14 @@ func CreatePost(
                         Type:         postType,
                         Slug:         slug,
 						CategoryID:   categoryID,
-                        IsPrivate:    req.IsPrivate,
+						IsPrivate:    visibility == constant.PostVisibilityPrivate,
+						Visibility:   visibility,
 						Top:          req.Top,
 						PublishedAt:  publishedAt,
 				},
 				AuthorID: authorID,
 				Labels:   labels,
+				VisibleRoles: visibleRoles,
 		}
 
         if err := repo.CreatePost(ctx, &post); err != nil {
@@ -553,9 +682,34 @@ func UpdatePost(
 	}
 
 	// 11. 是否私有帖子：true仅作者/管理员可见，false公开浏览
-	if req.IsPrivate != nil {
-		post.IsPrivate = *req.IsPrivate
+	visibility := resolvedPostVisibility(post)
+	if req.Visibility != nil {
+		visibility = *req.Visibility
+	} else if req.IsPrivate != nil {
+		if *req.IsPrivate {
+			visibility = constant.PostVisibilityPrivate
+		} else if visibility == constant.PostVisibilityPrivate {
+			visibility = constant.PostVisibilityPublic
+		}
 	}
+	visibleRoleIDs := make([]uint, 0, len(post.VisibleRoles))
+	for _, visibleRole := range post.VisibleRoles {
+		visibleRoleIDs = append(visibleRoleIDs, visibleRole.ID)
+	}
+	if req.VisibleRoleIDs != nil {
+		visibleRoleIDs = *req.VisibleRoleIDs
+	}
+	visibleRoles, err := resolvePostVisibleRoles(
+		ctx,
+		visibility,
+		visibleRoleIDs,
+	)
+	if err != nil {
+		return dto.PostDetailResponse{}, err
+	}
+	post.IsPrivate = visibility == constant.PostVisibilityPrivate
+	post.Visibility = visibility
+	post.VisibleRoles = visibleRoles
 
 	// 12. 是否置顶帖子
 	if req.Top != nil {

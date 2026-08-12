@@ -2,11 +2,16 @@ package service
 
   import (
         "context"
+		"errors"
         "net/http"
+		"regexp"
+		"strings"
 
         "github.com/zyj/my-blog/internal/dto"
+		"github.com/zyj/my-blog/internal/model"
         "github.com/zyj/my-blog/internal/repo"
         "github.com/zyj/my-blog/pkg/errs"
+		"gorm.io/gorm"
   )
 
   func ListRequestableRoles(
@@ -32,6 +37,257 @@ package service
 
         return items, nil
   }
+
+func ListEnabledRoleOptions(
+	ctx context.Context,
+) ([]dto.RoleOptionResponse, error) {
+	roles, err := repo.ListEnabledRoles(ctx)
+	if err != nil {
+		return nil, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"list enabled roles failed",
+		)
+	}
+
+	items := make([]dto.RoleOptionResponse, 0, len(roles))
+	for _, role := range roles {
+		items = append(items, dto.RoleOptionResponse{
+			ID:          role.ID,
+			Code:        role.Code,
+			Name:        role.Name,
+			Description: role.Description,
+		})
+	}
+
+	return items, nil
+}
+
+var roleCodePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+
+func toRoleResponse(role model.Role) dto.RoleResponse {
+	return dto.RoleResponse{
+		ID:            role.ID,
+		Code:          role.Code,
+		Name:          role.Name,
+		Description:   role.Description,
+		IsSystem:      role.IsSystem,
+		IsDefault:     role.IsDefault,
+		IsRequestable: role.IsRequestable,
+		Enabled:       role.Enabled,
+		CreatedAt:     role.CreatedAt,
+		UpdatedAt:     role.UpdatedAt,
+	}
+}
+
+func ListRoles(
+	ctx context.Context,
+	req dto.ListRolesRequest,
+) (dto.ListRolesResponse, error) {
+	if req.Page == 0 {
+		req.Page = 1
+	}
+	if req.PageSize == 0 {
+		req.PageSize = 20
+	}
+
+	roles, total, err := repo.ListRoles(
+		ctx,
+		req.Keyword,
+		(req.Page-1)*req.PageSize,
+		req.PageSize,
+	)
+	if err != nil {
+		return dto.ListRolesResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"list roles failed",
+		)
+	}
+
+	items := make([]dto.RoleResponse, 0, len(roles))
+	for _, role := range roles {
+		items = append(items, toRoleResponse(role))
+	}
+
+	return dto.ListRolesResponse{
+		Items:    items,
+		Total:    total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}, nil
+}
+
+func CreateRole(
+	ctx context.Context,
+	req dto.CreateRoleRequest,
+) (dto.RoleResponse, error) {
+	code := strings.ToLower(strings.TrimSpace(req.Code))
+	if !roleCodePattern.MatchString(code) {
+		return dto.RoleResponse{}, errs.NewBadRequest(
+			http.StatusBadRequest,
+			"role code is invalid",
+		)
+	}
+
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return dto.RoleResponse{}, errs.NewBadRequest(
+			http.StatusBadRequest,
+			"role name is required",
+		)
+	}
+
+	exists, err := repo.CheckRoleCodeExists(ctx, code)
+	if err != nil {
+		return dto.RoleResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"check role code failed",
+		)
+	}
+	if exists {
+		return dto.RoleResponse{}, errs.NewConflict(
+			http.StatusConflict,
+			"role code already exists",
+		)
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	role := model.Role{
+		Code:          code,
+		Name:          name,
+		Description:   strings.TrimSpace(req.Description),
+		IsSystem:      false,
+		IsDefault:     false,
+		IsRequestable: req.IsRequestable,
+		Enabled:       enabled,
+	}
+	if err := repo.CreateRole(ctx, &role); err != nil {
+		return dto.RoleResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"create role failed",
+		)
+	}
+
+	return toRoleResponse(role), nil
+}
+
+func UpdateRole(
+	ctx context.Context,
+	id uint,
+	req dto.UpdateRoleRequest,
+) (dto.RoleResponse, error) {
+	role, err := repo.GetRoleByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.RoleResponse{}, errs.NewNotFound(
+			http.StatusNotFound,
+			"role not found",
+		)
+	}
+	if err != nil {
+		return dto.RoleResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get role failed",
+		)
+	}
+	if role.IsSystem {
+		return dto.RoleResponse{}, errs.NewForbidden(
+			http.StatusForbidden,
+			"system role cannot be updated",
+		)
+	}
+
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			return dto.RoleResponse{}, errs.NewBadRequest(
+				http.StatusBadRequest,
+				"role name is required",
+			)
+		}
+		role.Name = name
+	}
+	if req.Description != nil {
+		role.Description = strings.TrimSpace(*req.Description)
+	}
+	if req.IsRequestable != nil {
+		role.IsRequestable = *req.IsRequestable
+	}
+	if req.Enabled != nil {
+		role.Enabled = *req.Enabled
+	}
+
+	if err := repo.UpdateRole(ctx, role); err != nil {
+		return dto.RoleResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"update role failed",
+		)
+	}
+
+	updatedRole, err := repo.GetRoleByID(ctx, role.ID)
+	if err != nil {
+		return dto.RoleResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get updated role failed",
+		)
+	}
+
+	return toRoleResponse(updatedRole), nil
+}
+
+func DeleteRole(ctx context.Context, id uint) error {
+	role, err := repo.GetRoleByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"role not found",
+		)
+	}
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get role failed",
+		)
+	}
+	if role.IsSystem {
+		return errs.NewForbidden(
+			http.StatusForbidden,
+			"system role cannot be deleted",
+		)
+	}
+
+	userCount, applicationCount, err := repo.CountRoleReferences(ctx, id)
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"count role references failed",
+		)
+	}
+	if userCount > 0 || applicationCount > 0 {
+		return errs.NewConflict(
+			http.StatusConflict,
+			"role is in use",
+		)
+	}
+
+	rowsAffected, err := repo.DeleteRole(ctx, id)
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"delete role failed",
+		)
+	}
+	if rowsAffected == 0 {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"role not found",
+		)
+	}
+
+	return nil
+}
 
   // ListRoleApplications 获取角色申请列表
 // ctx：请求上下文，用于传递超时、取消信号
@@ -112,4 +368,84 @@ func ListRoleApplications(
 		Page:     req.Page,
 		PageSize: req.PageSize,
 	}, nil
+}
+
+func ApproveRoleApplication(
+	ctx context.Context,
+	applicationID uint,
+	reviewerID uint,
+) error {
+	err := repo.ApproveRoleApplication(
+		ctx,
+		applicationID,
+		reviewerID,
+	)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"role application not found",
+		)
+	}
+	if errors.Is(err, repo.ErrRoleApplicationNotPending) {
+		return errs.NewConflict(
+			http.StatusConflict,
+			"role application has already been reviewed",
+		)
+	}
+	if errors.Is(err, repo.ErrRoleNotRequestable) {
+		return errs.NewConflict(
+			http.StatusConflict,
+			"requested role is no longer available",
+		)
+	}
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"approve role application failed",
+		)
+	}
+
+	return nil
+}
+
+func RejectRoleApplication(
+	ctx context.Context,
+	applicationID uint,
+	reviewerID uint,
+	reason string,
+) error {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return errs.NewBadRequest(
+			http.StatusBadRequest,
+			"reject reason is required",
+		)
+	}
+
+	err := repo.RejectRoleApplication(
+		ctx,
+		applicationID,
+		reviewerID,
+		reason,
+	)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"role application not found",
+		)
+	}
+	if errors.Is(err, repo.ErrRoleApplicationNotPending) {
+		return errs.NewConflict(
+			http.StatusConflict,
+			"role application has already been reviewed",
+		)
+	}
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"reject role application failed",
+		)
+	}
+
+	return nil
 }

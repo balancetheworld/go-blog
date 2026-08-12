@@ -19,11 +19,13 @@ func ListComments(ctx context.Context, c *app.RequestContext) {
 	}
 
 	viewerID, _ := middleware.GetCurrentUserID(c)
+	viewerRoleID, _ := middleware.GetCurrentRoleID(c)
 	comments, err := service.ListComments(
 		ctx,
 		req,
 		viewerID,
 		middleware.GetCurrentRole(c),
+		viewerRoleID,
 	)
 	if err != nil {
 		resps.Error(c, err)
@@ -35,6 +37,7 @@ func ListComments(ctx context.Context, c *app.RequestContext) {
 
 func CreateComment(ctx context.Context, c *app.RequestContext) {
 	userID, ok := middleware.GetCurrentUserID(c)
+	viewerRoleID, _ := middleware.GetCurrentRoleID(c)
 	if !ok {
 		resps.Unauthorized(c, resps.ErrUnauthorized)
 		return
@@ -50,6 +53,7 @@ func CreateComment(ctx context.Context, c *app.RequestContext) {
 		ctx,
 		userID,
 		middleware.GetCurrentRole(c),
+		viewerRoleID,
 		req,
 	)
 	if err != nil {

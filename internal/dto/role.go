@@ -13,6 +13,47 @@ type RoleOptionResponse struct {
 	Description string `json:"description"`
 }
 
+type RoleResponse struct {
+	ID            uint      `json:"id"`
+	Code          string    `json:"code"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	IsSystem      bool      `json:"is_system"`
+	IsDefault     bool      `json:"is_default"`
+	IsRequestable bool      `json:"is_requestable"`
+	Enabled       bool      `json:"enabled"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type CreateRoleRequest struct {
+	Code          string `json:"code" vd:"len($) >= 1 && len($) <= 64"`
+	Name          string `json:"name" vd:"len($) >= 1 && len($) <= 64"`
+	Description   string `json:"description" vd:"len($) <= 512"`
+	IsRequestable bool   `json:"is_requestable"`
+	Enabled       *bool  `json:"enabled"`
+}
+
+type UpdateRoleRequest struct {
+	Name          *string `json:"name" vd:"$ == nil || (len($) >= 1 && len($) <= 64)"`
+	Description   *string `json:"description" vd:"$ == nil || len($) <= 512"`
+	IsRequestable *bool   `json:"is_requestable"`
+	Enabled       *bool   `json:"enabled"`
+}
+
+type ListRolesRequest struct {
+	Page     int    `query:"page" vd:"$ == 0 || $ >= 1"`
+	PageSize int    `query:"page_size" vd:"$ == 0 || ($ >= 1 && $ <= 100)"`
+	Keyword  string `query:"keyword"`
+}
+
+type ListRolesResponse struct {
+	Items    []RoleResponse `json:"items"`
+	Total    int64          `json:"total"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"page_size"`
+}
+
 type RoleApplicationUserResponse struct {
 	ID       uint   `json:"id"`
 	Username string `json:"username"`

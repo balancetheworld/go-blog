@@ -1,10 +1,12 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import type { RoleOption } from '@/models/role'
 import type {
   CurrentRole,
   LoginReq,
   User,
+  UserRoleApplication,
 } from '@/models/user'
 import {
   createContext,
@@ -26,6 +28,8 @@ interface AuthProviderProps {
 interface AuthContextValue {
   currentUser: User | null
   currentRole: CurrentRole
+  currentIdentity: RoleOption | null
+  roleApplication: UserRoleApplication | null
   isLoading: boolean
   login: (request: LoginReq) => Promise<void>
   logout: () => Promise<void>
@@ -38,11 +42,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [currentRole, setCurrentRole] = useState<CurrentRole>('guest')
   const [isLoading, setIsLoading] = useState(true)
+  const [currentIdentity, setCurrentIdentity] = useState<RoleOption | null>(null)
+  const [roleApplication, setRoleApplication] = useState<UserRoleApplication | null>(null)
 
   // 封装一个把 currentUser 设为游客的函数
   const setGuest = useCallback(() => {
     setCurrentUser(null)
     setCurrentRole('guest')
+    setCurrentIdentity(null)
+    setRoleApplication(null)
   }, [])
 
   const refreshUser = useCallback(async () => {
@@ -54,6 +62,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       setCurrentUser(result.user)
       setCurrentRole(result.role)
+      setCurrentIdentity(result.identity)
+      setRoleApplication(result.roleApplication)
     }
     catch (error) {
       setGuest()
@@ -86,6 +96,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       value={{
         currentUser,
         currentRole,
+        currentIdentity,
+        roleApplication,
         isLoading,
         login,
         refreshUser,

@@ -134,6 +134,111 @@ func TestPostLabelsAndHeatCounters(t *testing.T) {
 	}
 }
 
+func TestListPostsFiltersVisibleRoles(t *testing.T) {
+	database, err := gorm.Open(sqlite.Open("file:post_visibility_test?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.AutoMigrate(
+		&model.Role{},
+		&model.User{},
+		&model.Post{},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	previousDB := db
+	db = database
+	t.Cleanup(func() {
+		db = previousDB
+	})
+
+	roles := []model.Role{
+		{Code: "member", Name: "Member", Enabled: true},
+		{Code: "verified", Name: "Verified", Enabled: true},
+	}
+	if err := database.Create(&roles).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	author := model.User{
+		Username:     "visibility-editor",
+		Email:        "visibility-editor@example.com",
+		PasswordHash: "password-hash",
+		Role:         constant.RoleEditor,
+		RoleID:       &roles[0].ID,
+	}
+	if err := database.Create(&author).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	posts := []model.Post{
+		{
+			PostBase: model.PostBase{
+				Title:      "Public",
+				Content:    "content",
+				Slug:       "visibility-public",
+				Visibility: constant.PostVisibilityPublic,
+			},
+			AuthorID: author.ID,
+		},
+		{
+			PostBase: model.PostBase{
+				Title:      "Roles",
+				Content:    "content",
+				Slug:       "visibility-roles",
+				Visibility: constant.PostVisibilityRoles,
+			},
+			AuthorID:     author.ID,
+			VisibleRoles: []model.Role{roles[1]},
+		},
+		{
+			PostBase: model.PostBase{
+				Title:      "Private",
+				Content:    "content",
+				Slug:       "visibility-private",
+				IsPrivate:  true,
+				Visibility: constant.PostVisibilityPrivate,
+			},
+			AuthorID: author.ID,
+		},
+	}
+	for index := range posts {
+		if err := CreatePost(context.Background(), &posts[index]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name         string
+		viewerID     uint
+		viewerRoleID uint
+		expected     int64
+	}{
+		{name: "guest", expected: 1},
+		{name: "matching role", viewerRoleID: roles[1].ID, expected: 2},
+		{name: "other role", viewerRoleID: roles[0].ID, expected: 1},
+		{name: "author", viewerID: author.ID, viewerRoleID: roles[0].ID, expected: 3},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			items, total, err := ListPosts(context.Background(), PostListFilter{
+				Limit:        10,
+				PublicOnly:   true,
+				ViewerID:     test.viewerID,
+				ViewerRoleID: test.viewerRoleID,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if total != test.expected || int64(len(items)) != test.expected {
+				t.Fatalf("expected %d posts, got total=%d items=%d", test.expected, total, len(items))
+			}
+		})
+	}
+}
+
 func TestMigrateBackfillsPostFields(t *testing.T) {
 	database, err := gorm.Open(sqlite.Open("file:post_migrate_test?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {

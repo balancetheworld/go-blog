@@ -128,7 +128,10 @@ func GetUserByID(ctx context.Context, id uint64) (model.User, error) {
 	}
 
 	var user model.User
-	err := db.WithContext(ctx).First(&user, id).Error
+	err := db.WithContext(ctx).
+		Preload("CurrentRole").
+		First(&user, id).
+		Error
 	return user, err
 }
 

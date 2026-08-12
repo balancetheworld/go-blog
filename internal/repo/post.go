@@ -6,6 +6,7 @@ import (
         "strings"
 
         "github.com/zyj/my-blog/internal/model"
+		"github.com/zyj/my-blog/pkg/constant"
         "gorm.io/gorm"
   )
 
@@ -22,6 +23,8 @@ type PostListFilter struct {
 	Status     string // 帖子状态筛选，如草稿/审核中/已发布/已下架
 	Sort       string // 排序字段与规则，例如 create_time desc、view_num asc
 	PublicOnly bool   // 是否只查询公开帖子；true=仅展示对外公开内容，false=包含私有/仅内部可见帖子
+	ViewerID   uint
+	ViewerRoleID uint
 }
 
  func CreatePost(ctx context.Context, post *model.Post) error {
@@ -29,7 +32,20 @@ type PostListFilter struct {
                 return errors.New("database is not initialized")
         }
 
-        return db.WithContext(ctx).Create(post).Error
+        return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.
+				Omit("Author", "Category", "Labels", "VisibleRoles").
+				Create(post).
+				Error; err != nil {
+				return err
+			}
+
+			if err := tx.Model(post).Association("Labels").Replace(post.Labels); err != nil {
+				return err
+			}
+
+			return tx.Model(post).Association("VisibleRoles").Replace(post.VisibleRoles)
+		})
   }
 
 	func UpdatePost(ctx context.Context, post *model.Post) error {
@@ -39,13 +55,17 @@ type PostListFilter struct {
 
 		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.
-				Omit("Author", "Category", "Labels").
+				Omit("Author", "Category", "Labels", "VisibleRoles").
 				Save(post).
 				Error; err != nil {
 				return err
 			}
 
-			return tx.Model(post).Association("Labels").Replace(post.Labels)
+			if err := tx.Model(post).Association("Labels").Replace(post.Labels); err != nil {
+				return err
+			}
+
+			return tx.Model(post).Association("VisibleRoles").Replace(post.VisibleRoles)
 		})
 	  }
 
@@ -57,7 +77,7 @@ type PostListFilter struct {
 		post := model.Post{}
 		post.ID = id
 		result := db.WithContext(ctx).
-			Select("Labels").
+			Select("Labels", "VisibleRoles").
 			Delete(&post)
         return result.RowsAffected, result.Error
   }
@@ -72,6 +92,7 @@ type PostListFilter struct {
 				Preload("Author").
 				Preload("Category").
 				Preload("Labels").
+				Preload("VisibleRoles").
 				First(&post, id).
                 Error
 
@@ -88,6 +109,7 @@ type PostListFilter struct {
 				Preload("Author").
 				Preload("Category").
 				Preload("Labels").
+				Preload("VisibleRoles").
 				Where("slug = ?", slug).
                 First(&post).
                 Error
@@ -127,9 +149,18 @@ type PostListFilter struct {
 	query := db.WithContext(ctx).Model(&model.Post{})
 
 	if filter.PublicOnly {
-		query = query. 
-				Where("is_private = ?", false). 
-				Where("content <> ?", "") //只查询 content 字段不为空字符串的数据
+		query = query.
+				Where("content <> ?", "").
+				Where(
+					"((is_private = ? AND (visibility = ? OR visibility = ?)) OR author_id = ? OR (is_private = ? AND visibility = ? AND EXISTS (SELECT 1 FROM post_visible_roles WHERE post_visible_roles.post_id = posts.id AND post_visible_roles.role_id = ?)))",
+					false,
+					constant.PostVisibilityPublic,
+					"",
+					filter.ViewerID,
+					false,
+					constant.PostVisibilityRoles,
+					filter.ViewerRoleID,
+				)
 	}
 // 1. strings.TrimSpace(filter.Keyword)：去除关键词前后空格（用户输入多余空格自动清理）
 // 短变量 keyword：接收去空格后的关键词；仅当前if块内有效
@@ -188,6 +219,7 @@ if filter.Type != "" {
 				Preload("Author").
 				Preload("Category").
 				Preload("Labels").
+				Preload("VisibleRoles").
 				Offset(filter.Offset).
                 Limit(filter.Limit).
                 Find(&posts).
@@ -199,20 +231,32 @@ if filter.Type != "" {
         return posts, total, nil
   }
 
-   func GetRandomPost(
+  func GetRandomPost(
         ctx context.Context,
         publicOnly bool,
+		viewerID uint,
+		viewerRoleID uint,
   ) (model.Post, error) {
         if db == nil {
                 return model.Post{}, errors.New("database is not initialized")
         }
 
-        query := db.WithContext(ctx).Model(&model.Post{})
+        query := db.WithContext(ctx).
+			Model(&model.Post{}).
+			Where("content <> ?", "")
 
         if publicOnly {
                 query = query.
-                        Where("is_private = ?", false).
-                        Where("content <> ?", "")
+						Where(
+							"((is_private = ? AND (visibility = ? OR visibility = ?)) OR author_id = ? OR (is_private = ? AND visibility = ? AND EXISTS (SELECT 1 FROM post_visible_roles WHERE post_visible_roles.post_id = posts.id AND post_visible_roles.role_id = ?)))",
+							false,
+							constant.PostVisibilityPublic,
+							"",
+							viewerID,
+							false,
+							constant.PostVisibilityRoles,
+							viewerRoleID,
+						)
         }
 
         var post model.Post
@@ -220,6 +264,7 @@ if filter.Type != "" {
 				Preload("Author").
 				Preload("Category").
 				Preload("Labels").
+				Preload("VisibleRoles").
 				Order("RANDOM()").
                 First(&post).
                 Error

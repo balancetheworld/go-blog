@@ -1,3 +1,4 @@
+import type { RoleOption } from './role'
 import type { User } from './user'
 
 export type PostPublishStatus = 'published' | 'draft'
@@ -5,6 +6,8 @@ export type PostPublishStatus = 'published' | 'draft'
 export type PostStatus = PostPublishStatus | 'all'
 
 export type PostSort = 'latest' | 'oldest' | 'hot'
+
+export type PostVisibility = 'public' | 'roles' | 'private'
 
 export interface Category {
   id: number
@@ -35,6 +38,8 @@ export interface Post {
   labels: Label[]
   author: User
   isPrivate: boolean
+  visibility: PostVisibility
+  visibleRoles: RoleOption[]
   top: boolean
   likeCount: number
   commentCount: number
@@ -58,6 +63,8 @@ export interface PostListItem {
   labels: Label[]
   author: User
   isPrivate: boolean
+  visibility: PostVisibility
+  visibleRoles: RoleOption[]
   top: boolean
   likeCount: number
   commentCount: number
@@ -96,6 +103,8 @@ export interface CreatePostReq {
   categoryId?: number
   labelIds?: number[]
   isPrivate?: boolean
+  visibility?: PostVisibility
+  visibleRoleIds?: number[]
   top?: boolean
   publish?: boolean
 }
@@ -109,6 +118,8 @@ export interface UpdatePostReq {
   categoryId?: number
   labelIds?: number[]
   isPrivate?: boolean
+  visibility?: PostVisibility
+  visibleRoleIds?: number[]
   top?: boolean
   publish?: boolean
 }

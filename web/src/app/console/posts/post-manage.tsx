@@ -136,7 +136,13 @@ export function PostManage({
                     {post.status === 'published' ? '已发布' : '草稿'}
                   </td>
                   <td className="px-3 py-4">{post.category?.name ?? '未分类'}</td>
-                  <td className="px-3 py-4">{post.isPrivate ? '私密' : '公开'}</td>
+                  <td className="px-3 py-4">
+                    {post.visibility === 'private'
+                      ? '仅作者和管理员'
+                      : post.visibility === 'roles'
+                        ? post.visibleRoles.map(role => role.name).join('、')
+                        : '公开'}
+                  </td>
                   <td className="px-3 py-4">
                     {post.publishedAt
                       ? dateFormatter.format(new Date(post.publishedAt))

@@ -18,6 +18,7 @@ import (
 const (
 	currentUserIDKey    = "current_user_id"
 	currentRoleKey      = "current_role"
+	currentRoleIDKey    = "current_role_id"
 	currentSessionIDKey = "current_session_id"
 )
 
@@ -30,6 +31,7 @@ func SetGuest(c *app.RequestContext) {
 	//往本次请求的上下文里存入一个键值对，只在当前这一次请求内生效
 	c.Set(currentUserIDKey, uint(0))
 	c.Set(currentRoleKey, constant.RoleGuest)
+	c.Set(currentRoleIDKey, uint(0))
 	c.Set(currentSessionIDKey, "")
 }
 
@@ -37,10 +39,17 @@ func SetCurrentUser(
 	c *app.RequestContext,
 	userID uint,
 	role constant.Role,
+	roleID *uint,
 	sessionID string,
 ) {
+	currentRoleID := uint(0)
+	if roleID != nil {
+		currentRoleID = *roleID
+	}
+
 	c.Set(currentUserIDKey, userID)
 	c.Set(currentRoleKey, role)
+	c.Set(currentRoleIDKey, currentRoleID)
 	c.Set(currentSessionIDKey, sessionID)
 }
 
@@ -82,6 +91,18 @@ func GetCurrentRole(
 	}
 
 	return role
+}
+
+func GetCurrentRoleID(
+	c *app.RequestContext,
+) (uint, bool) {
+	value, exists := c.Get(currentRoleIDKey)
+	if !exists {
+		return 0, false
+	}
+
+	roleID, ok := value.(uint)
+	return roleID, ok && roleID > 0
 }
 
 func SetTokenCookies(
@@ -126,17 +147,41 @@ func ClearTokenCookies(c *app.RequestContext) {
 
 func UseAuth(block bool) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		accessClaims, err := utils.ParseAccessToken(readAccessToken(c))
-		if err == nil {
-			SetCurrentUser(
-				c,
-				accessClaims.UserID,
-				accessClaims.Role,
-				accessClaims.SessionID,
-			)
-			c.Next(ctx)
-			return
-		}
+		 accessClaims, err := utils.ParseAccessToken(readAccessToken(c))
+  if err == nil {
+        valid, sessionErr := repo.IsSessionValidForUser(
+                ctx,
+                accessClaims.SessionID,
+                accessClaims.UserID,
+        )
+        if sessionErr != nil {
+                abortInternalServerError(c)
+                return
+        }
+
+        if valid {
+                user, userErr := repo.GetUserByID(
+                        ctx,
+                        uint64(accessClaims.UserID),
+                )
+                if userErr == nil {
+                        SetCurrentUser(
+                                c,
+                                user.ID,
+                                user.Role,
+								user.RoleID,
+                                accessClaims.SessionID,
+                        )
+                        c.Next(ctx)
+                        return
+                }
+
+                if !errors.Is(userErr, gorm.ErrRecordNotFound) {
+                        abortInternalServerError(c)
+                        return
+                }
+        }
+  }
 
 		refreshClaims, err := utils.ParseRefreshToken(
 			string(c.Cookie(RefreshTokenCookieName)),
@@ -180,6 +225,7 @@ func UseAuth(block bool) app.HandlerFunc {
 						c,
 						user.ID,
 						user.Role,
+						user.RoleID,
 						refreshClaims.SessionID,
 					)
 					c.Next(ctx)

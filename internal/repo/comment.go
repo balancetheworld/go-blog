@@ -50,7 +50,7 @@ func GetCommentByID(ctx context.Context, id uint) (model.Comment, error) {
 	return comment, err
 }
 
-func ListCommentsByPostID(
+func ListComments(
 	ctx context.Context,
 	postID uint,
 	offset int,
@@ -61,8 +61,10 @@ func ListCommentsByPostID(
 	}
 
 	query := db.WithContext(ctx).
-		Model(&model.Comment{}).
-		Where("post_id = ?", postID)
+		Model(&model.Comment{})
+		if postID > 0 {
+                query = query.Where("post_id = ?", postID)
+        }
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -72,6 +74,7 @@ func ListCommentsByPostID(
 	var comments []model.Comment
 	err := query.
 		Preload("Author").
+		Preload("Post").
 		Order("created_at DESC, id DESC").
 		Offset(offset).
 		Limit(limit).

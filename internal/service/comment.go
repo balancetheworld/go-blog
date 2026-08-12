@@ -19,6 +19,7 @@ func ListComments(
 	req dto.CommentListRequest,
 	viewerID uint,
 	role constant.Role,
+	viewerRoleID uint,
 ) (dto.CommentListResponse, error) {
 	if req.Page == 0 {
 		req.Page = 1
@@ -27,27 +28,34 @@ func ListComments(
 		req.PageSize = 20
 	}
 
-	post, err := repo.GetPostByID(ctx, req.PostID)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return dto.CommentListResponse{}, errs.NewNotFound(
-			http.StatusNotFound,
-			"post not found",
-		)
-	}
-	if err != nil {
-		return dto.CommentListResponse{}, errs.NewInternalServer(
-			http.StatusInternalServerError,
-			"get post failed",
-		)
-	}
-	if (post.IsPrivate || post.Content == "") && !canManagePost(post, viewerID, role) {
-		return dto.CommentListResponse{}, errs.NewNotFound(
-			http.StatusNotFound,
-			"post not found",
+	if req.PostID > 0 {
+		post, err := repo.GetPostByID(ctx, req.PostID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return dto.CommentListResponse{}, errs.NewNotFound(
+				http.StatusNotFound,
+				"post not found",
+			)
+		}
+		if err != nil {
+			return dto.CommentListResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"get post failed",
+			)
+		}
+		if !canViewPost(post, viewerID, role, viewerRoleID) {
+			return dto.CommentListResponse{}, errs.NewNotFound(
+				http.StatusNotFound,
+				"post not found",
+			)
+		}
+	} else if viewerID == 0 || role != constant.RoleAdmin {
+		return dto.CommentListResponse{}, errs.NewForbidden(
+			http.StatusForbidden,
+			"comment list access denied",
 		)
 	}
 
-	comments, total, err := repo.ListCommentsByPostID(
+	comments, total, err := repo.ListComments(
 		ctx,
 		req.PostID,
 		(req.Page-1)*req.PageSize,
@@ -77,6 +85,7 @@ func CreateComment(
 	ctx context.Context,
 	authorID uint,
 	role constant.Role,
+	viewerRoleID uint,
 	req dto.CreateCommentRequest,
 ) (dto.CommentResponse, error) {
 	if authorID == 0 || role == constant.RoleGuest {
@@ -113,7 +122,7 @@ func CreateComment(
 			"cannot comment on draft post",
 		)
 	}
-	if post.IsPrivate && !canManagePost(post, authorID, role) {
+	if !canViewPost(post, authorID, role, viewerRoleID) {
 		return dto.CommentResponse{}, errs.NewNotFound(
 			http.StatusNotFound,
 			"post not found",

@@ -63,7 +63,7 @@ func TestCommentCreateListAndDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	comments, total, err := ListCommentsByPostID(
+	comments, total, err := ListComments(
 		context.Background(),
 		post.ID,
 		0,

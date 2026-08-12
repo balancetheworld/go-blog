@@ -7,6 +7,8 @@ export function UserNavigation() {
   const {
     currentUser,
     currentRole,
+    currentIdentity,
+    roleApplication,
     isLoading,
     logout,
   } = useAuth()
@@ -29,6 +31,29 @@ export function UserNavigation() {
       <span className="max-w-32 truncate">
         {currentUser.nickname || currentUser.username}
       </span>
+
+      {currentIdentity && (
+        <span className="text-neutral-500">
+          {currentIdentity.name}
+        </span>
+      )}
+
+      {roleApplication?.status === 'pending' && (
+        <span className="text-amber-600">
+          {roleApplication.requestedRole.name}
+          审核中
+        </span>
+      )}
+
+      {roleApplication?.status === 'rejected' && (
+        <span
+          className="text-red-600"
+          title={roleApplication.rejectReason || undefined}
+        >
+          {roleApplication.requestedRole.name}
+          申请已拒绝
+        </span>
+      )}
 
       {(currentRole === 'editor' || currentRole === 'admin') && (
         <Link href="/console" className="font-medium">

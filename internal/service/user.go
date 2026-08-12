@@ -63,6 +63,69 @@ func GetUser(ctx context.Context, id uint64) (dto.UserResponse, error) {
 	return toUserResponse(user), nil
 }
 
+func GetLoginUser(
+	ctx context.Context,
+	userID uint,
+) (dto.LoginUserResponse, error) {
+	user, err := repo.GetUserByID(ctx, uint64(userID))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.LoginUserResponse{}, errs.NewNotFound(
+			http.StatusNotFound,
+			"user not found",
+		)
+	}
+	if err != nil {
+		return dto.LoginUserResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get user failed",
+		)
+	}
+
+	userResponse := toUserResponse(user)
+	result := dto.LoginUserResponse{
+		User: &userResponse,
+		Role: user.Role,
+	}
+
+	if user.CurrentRole.ID > 0 {
+		result.Identity = &dto.RoleOptionResponse{
+			ID:          user.CurrentRole.ID,
+			Code:        user.CurrentRole.Code,
+			Name:        user.CurrentRole.Name,
+			Description: user.CurrentRole.Description,
+		}
+	}
+
+	application, err := repo.GetLatestRoleApplicationByUserID(
+		ctx,
+		user.ID,
+	)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.LoginUserResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get role application failed",
+		)
+	}
+
+	if err == nil {
+		result.RoleApplication = &dto.UserRoleApplicationResponse{
+			ID: application.ID,
+			RequestedRole: dto.RoleOptionResponse{
+				ID:          application.RequestedRole.ID,
+				Code:        application.RequestedRole.Code,
+				Name:        application.RequestedRole.Name,
+				Description: application.RequestedRole.Description,
+			},
+			Status:       application.Status,
+			RejectReason: application.RejectReason,
+			ReviewedAt:   application.ReviewedAt,
+			CreatedAt:    application.CreatedAt,
+		}
+	}
+
+	return result, nil
+}
+
 func CreateUser(ctx context.Context, req dto.CreateUserRequest) (dto.UserPrivateResponse, error) {
 	// 1. 参数校验已经在 controller 层完成，这里不需要重复校验
 	// 2. 业务逻辑处理：调用 repo 层，保存用户数据到数据库

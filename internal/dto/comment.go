@@ -8,7 +8,7 @@ type CreateCommentRequest struct {
 }
 
 type CommentListRequest struct {
-	PostID   uint `query:"post_id" vd:"$ > 0"`
+	PostID   uint `query:"post_id" vd:"$ == 0 || $ > 0"`
 	Page     int  `query:"page" vd:"$ == 0 || $ >= 1"`
 	PageSize int  `query:"page_size" vd:"$ == 0 || ($ >= 1 && $ <= 100)"`
 }

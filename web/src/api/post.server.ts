@@ -7,6 +7,7 @@ import type {
   PostListResponse, // 帖子分页列表返回结果类型
 } from '@/models/post'
 import type { Resp } from '@/models/resp' // 后端统一标准返回体泛型类型
+import type { RoleOption } from '@/models/role'
 
 // node内置环境变量对象，读取.env里的后端接口地址
 import process from 'node:process'
@@ -170,6 +171,10 @@ export async function listCategories(): Promise<Category[]> {
 
 export async function listLabels(): Promise<Label[]> {
   return serverGet<Label[]>('/post/labels')
+}
+
+export async function listVisibleRoles(): Promise<RoleOption[]> {
+  return serverGet<RoleOption[]>('/role/options')
 }
 
 /**

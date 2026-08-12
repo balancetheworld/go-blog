@@ -5,6 +5,7 @@ import {
   LockKeyhole,
   MessageCircle,
   Pin,
+  Users,
 } from 'lucide-react'
 import Image from 'next/image'
 import { sanitizePostHTML } from '@/lib/post-html'
@@ -37,10 +38,17 @@ export function BlogPost({ post }: BlogPostProps) {
             </span>
           )}
 
-          {post.isPrivate && (
+          {post.visibility === 'private' && (
             <span className="inline-flex items-center gap-1">
               <LockKeyhole className="size-4" aria-hidden="true" />
               私密
+            </span>
+          )}
+
+          {post.visibility === 'roles' && (
+            <span className="inline-flex items-center gap-1">
+              <Users className="size-4" aria-hidden="true" />
+              {post.visibleRoles.map(role => role.name).join('、')}
             </span>
           )}
         </div>

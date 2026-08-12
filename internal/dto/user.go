@@ -105,9 +105,20 @@ type GetUserByUsernameReq struct {
 	Username string `query:"username" vd:"len($) >= 3 && len($) <= 32"`
 }
 
+type UserRoleApplicationResponse struct {
+	ID            uint                           `json:"id"`
+	RequestedRole RoleOptionResponse             `json:"requested_role"`
+	Status        constant.RoleApplicationStatus `json:"status"`
+	RejectReason  string                         `json:"reject_reason"`
+	ReviewedAt    *time.Time                     `json:"reviewed_at"`
+	CreatedAt     time.Time                      `json:"created_at"`
+}
+
 type LoginUserResponse struct {
-	User *UserResponse `json:"user"`
-	Role constant.Role `json:"role"`
+	User            *UserResponse                `json:"user"`
+	Role            constant.Role                `json:"role"`
+	Identity        *RoleOptionResponse           `json:"identity"`
+	RoleApplication *UserRoleApplicationResponse `json:"role_application"`
 }
 
 type CaptchaConfigResponse struct {

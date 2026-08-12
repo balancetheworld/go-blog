@@ -6,7 +6,9 @@ import type {
   CreatePostReq,
   Label,
   Post,
+  PostVisibility,
 } from '@/models/post'
+import type { RoleOption } from '@/models/role'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Bold, Heading2, Italic, Save, Send } from 'lucide-react'
@@ -19,15 +21,20 @@ interface PostEditorProps {
   post?: Post
   categories: Category[]
   labels: Label[]
+  roleOptions: RoleOption[]
 }
 
 export function PostEditor({
   post,
   categories,
   labels,
+  roleOptions,
 }: PostEditorProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
+  const [visibility, setVisibility] = useState<PostVisibility>(
+    post?.visibility ?? (post?.isPrivate ? 'private' : 'public'),
+  )
   const isCreating = post === undefined
 
   const editor = useEditor({
@@ -59,6 +66,15 @@ export function PostEditor({
     }
 
     const categoryValue = String(form.get('categoryId') ?? '')
+    const visibleRoleIds = form
+      .getAll('visibleRoleIds')
+      .map(value => Number(value))
+
+    if (visibility === 'roles' && visibleRoleIds.length === 0) {
+      toast.error('请选择至少一个可见身份')
+      return
+    }
+
     const request: CreatePostReq = {
       title,
       description: String(form.get('description') ?? '').trim(),
@@ -67,7 +83,8 @@ export function PostEditor({
       draftContent: editor.getHTML(),
       categoryId: categoryValue ? Number(categoryValue) : 0,
       labelIds: form.getAll('labelIds').map(value => Number(value)),
-      isPrivate: form.has('isPrivate'),
+      visibility,
+      visibleRoleIds: visibility === 'roles' ? visibleRoleIds : [],
       top: form.has('top'),
     }
 
@@ -238,24 +255,50 @@ export function PostEditor({
         </div>
       </section>
 
-      <div className="flex flex-wrap gap-6">
-        <label className="flex items-center gap-2">
-          <input
-            name="isPrivate"
-            type="checkbox"
-            defaultChecked={post?.isPrivate ?? false}
-          />
-          私密文章
+      <div className="space-y-4">
+        <label className="block max-w-sm space-y-2">
+          <span className="text-sm">可见范围</span>
+          <select
+            name="visibility"
+            value={visibility}
+            onChange={event => setVisibility(event.target.value as PostVisibility)}
+            className="min-h-10 w-full rounded-md border border-black/15 px-3 dark:border-white/15"
+          >
+            <option value="public">公开</option>
+            <option value="roles">指定身份</option>
+            <option value="private">仅作者和管理员</option>
+          </select>
         </label>
 
-        <label className="flex items-center gap-2">
-          <input
-            name="top"
-            type="checkbox"
-            defaultChecked={post?.top ?? false}
-          />
-          置顶文章
-        </label>
+        {visibility === 'roles' && (
+          <fieldset className="space-y-3">
+            <legend className="text-sm">可见身份</legend>
+            <div className="flex flex-wrap gap-3">
+              {roleOptions.map(role => (
+                <label key={role.id} className="inline-flex items-center gap-2 rounded-sm border border-black/10 px-3 py-2 text-sm dark:border-white/10">
+                  <input
+                    name="visibleRoleIds"
+                    type="checkbox"
+                    value={role.id}
+                    defaultChecked={post?.visibleRoles.some(item => item.id === role.id) ?? false}
+                  />
+                  {role.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        <div className="flex flex-wrap gap-6">
+          <label className="flex items-center gap-2">
+            <input
+              name="top"
+              type="checkbox"
+              defaultChecked={post?.top ?? false}
+            />
+            置顶文章
+          </label>
+        </div>
       </div>
 
       <footer className="flex flex-wrap justify-end gap-3 border-t border-black/10 pt-5 dark:border-white/10">

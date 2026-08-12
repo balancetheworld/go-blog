@@ -3,6 +3,7 @@ import {
   getPost,
   listCategories,
   listLabels,
+  listVisibleRoles,
   PostServerError,
 } from '@/api/post.server'
 import { getCurrentUser } from '@/lib/auth/current-user'
@@ -25,10 +26,11 @@ export default async function EditPostPage({
     notFound()
 
   try {
-    const [post, categories, labels, currentUser] = await Promise.all([
+    const [post, categories, labels, roleOptions, currentUser] = await Promise.all([
       getPost(String(postID)),
       listCategories(),
       listLabels(),
+      listVisibleRoles(),
       getCurrentUser(),
     ])
 
@@ -46,6 +48,7 @@ export default async function EditPostPage({
         post={post}
         categories={categories}
         labels={labels}
+        roleOptions={roleOptions}
       />
     )
   }

@@ -166,26 +166,24 @@ func Logout(ctx context.Context, c *app.RequestContext) {
 }
 
 func GetLoginUser(ctx context.Context, c *app.RequestContext) {
-	role := middleware.GetCurrentRole(c)
 	userID, ok := middleware.GetCurrentUserID(c)
 	if !ok {
 		resps.Ok(c, resps.Success, dto.LoginUserResponse{
-			User: nil,
-			Role: constant.RoleGuest,
+			User:            nil,
+			Role:            constant.RoleGuest,
+			Identity:        nil,
+			RoleApplication: nil,
 		})
 		return
 	}
 
-	user, err := service.GetUser(ctx, uint64(userID))
+	result, err := service.GetLoginUser(ctx, userID)
 	if err != nil {
 		resps.Error(c, err)
 		return
 	}
 
-	resps.Ok(c, resps.Success, dto.LoginUserResponse{
-		User: &user,
-		Role: role,
-	})
+	resps.Ok(c, resps.Success, result)
 }
 
 func VerifyEmail(ctx context.Context, c *app.RequestContext) {

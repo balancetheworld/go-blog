@@ -1,3 +1,8 @@
+import type {
+  RoleApplicationStatus,
+  RoleOption,
+} from './role'
+
 export type UserRole = 'user' | 'editor' | 'admin'
 
 export type CurrentRole = UserRole | 'guest'
@@ -64,7 +69,18 @@ export interface CaptchaConfig {
   siteKey: string
 }
 
+export interface UserRoleApplication {
+  id: number
+  requestedRole: RoleOption
+  status: RoleApplicationStatus
+  rejectReason: string
+  reviewedAt: string | null
+  createdAt: string
+}
+
 export interface CurrentUserResp {
   user: User | null
   role: CurrentRole
+  identity: RoleOption | null
+  roleApplication: UserRoleApplication | null
 }

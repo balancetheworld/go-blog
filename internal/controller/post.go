@@ -15,12 +15,14 @@ import (
 	slugOrID := c.Param("slug_or_id")
         viewerID, _ := middleware.GetCurrentUserID(c)
         role := middleware.GetCurrentRole(c)
+		viewerRoleID, _ := middleware.GetCurrentRoleID(c)
 
         post, err := service.GetPostDetail(
                 ctx,
                 slugOrID,
                 viewerID,
                 role,
+				viewerRoleID,
         )
         if err != nil {
                 resps.Error(c, err)
@@ -42,12 +44,14 @@ import (
 
         viewerID, _ := middleware.GetCurrentUserID(c)
         role := middleware.GetCurrentRole(c)
+		viewerRoleID, _ := middleware.GetCurrentRoleID(c)
 
         posts, err := service.ListPosts(
                 ctx,
                 req,
                 viewerID,
                 role,
+				viewerRoleID,
         )
         if err != nil {
                 resps.Error(c, err)
@@ -61,7 +65,14 @@ import (
         ctx context.Context,
         c *app.RequestContext,
   ) {
-        post, err := service.GetRandomPost(ctx)
+		viewerID, _ := middleware.GetCurrentUserID(c)
+		viewerRoleID, _ := middleware.GetCurrentRoleID(c)
+		post, err := service.GetRandomPost(
+			ctx,
+			viewerID,
+			middleware.GetCurrentRole(c),
+			viewerRoleID,
+		)
         if err != nil {
                 resps.Error(c, err)
                 return

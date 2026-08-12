@@ -4,37 +4,42 @@ import (
 	"time"
 
 	"github.com/zyj/my-blog/internal/dto"
+	"github.com/zyj/my-blog/pkg/constant"
 	"gorm.io/gorm"
 )
 
 type PostBase struct {
-	Title        string  `gorm:"size:255;not null"`
-	Content      string  `gorm:"type:text;not null;default:''"`
-	DraftContent string  `gorm:"type:text;not null;default:''"`
-	Description  string  `gorm:"size:1000;not null;default:''"`
-	Cover        string  `gorm:"size:512;not null;default:''"`
-	Type         string  `gorm:"size:32;not null;default:article"`
-	Slug         string  `gorm:"size:255;not null;uniqueIndex"`
-	CategoryID   *uint   `gorm:"index"`
-	IsPrivate    bool    `gorm:"not null;default:false;index"`
-	Top          bool    `gorm:"not null;default:false;index"`
-	LikeCount    uint64  `gorm:"not null;default:0"`
-	CommentCount uint64  `gorm:"not null;default:0"`
-	ViewCount    uint64  `gorm:"not null;default:0"`
-	Heat         float64 `gorm:"not null;default:0"`
+	Title        string                  `gorm:"size:255;not null"`
+	Content      string                  `gorm:"type:text;not null;default:''"`
+	DraftContent string                  `gorm:"type:text;not null;default:''"`
+	Description  string                  `gorm:"size:1000;not null;default:''"`
+	Cover        string                  `gorm:"size:512;not null;default:''"`
+	Type         string                  `gorm:"size:32;not null;default:article"`
+	Slug         string                  `gorm:"size:255;not null;uniqueIndex"`
+	CategoryID   *uint                   `gorm:"index"`
+	IsPrivate    bool                    `gorm:"not null;default:false;index"`
+	Visibility   constant.PostVisibility `gorm:"size:16;not null;default:public;index"`
+	Top          bool                    `gorm:"not null;default:false;index"`
+	LikeCount    uint64                  `gorm:"not null;default:0"`
+	CommentCount uint64                  `gorm:"not null;default:0"`
+	ViewCount    uint64                  `gorm:"not null;default:0"`
+	Heat         float64                 `gorm:"not null;default:0"`
 	PublishedAt  *time.Time
 }
 
 type Post struct {
 	gorm.Model
 	PostBase
-	AuthorID uint `gorm:"not null;index"`
-	Author   User `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
-	Category *Category `gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
-	Labels   []Label `gorm:"many2many:post_labels;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	AuthorID     uint      `gorm:"not null;index"`
+	Author       User      `gorm:"foreignKey:AuthorID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
+	Category     *Category `gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+	Labels       []Label   `gorm:"many2many:post_labels;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	VisibleRoles []Role    `gorm:"many2many:post_visible_roles;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 func (p Post) ToDto() dto.PostDetailResponse {
+	visibility := p.resolvedVisibility()
+
 	return dto.PostDetailResponse{
 		ID:           uint64(p.ID),
 		Title:        p.Title,
@@ -47,7 +52,9 @@ func (p Post) ToDto() dto.PostDetailResponse {
 		Category:     p.categoryToDto(),
 		Labels:       p.labelsToDto(),
 		Author:       p.Author.ToDto(),
-		IsPrivate:    p.IsPrivate,
+		IsPrivate:    visibility == constant.PostVisibilityPrivate,
+		Visibility:   visibility,
+		VisibleRoles: p.visibleRolesToDto(),
 		Top:          p.Top,
 		LikeCount:    p.LikeCount,
 		CommentCount: p.CommentCount,
@@ -65,6 +72,7 @@ func (p Post) ToDtoWithShortContent() dto.PostListItemResponse {
 	if len(content) > 200 {
 		content = content[:200]
 	}
+	visibility := p.resolvedVisibility()
 
 	return dto.PostListItemResponse{
 		ID:           uint64(p.ID),
@@ -77,7 +85,9 @@ func (p Post) ToDtoWithShortContent() dto.PostListItemResponse {
 		Category:     p.categoryToDto(),
 		Labels:       p.labelsToDto(),
 		Author:       p.Author.ToDto(),
-		IsPrivate:    p.IsPrivate,
+		IsPrivate:    visibility == constant.PostVisibilityPrivate,
+		Visibility:   visibility,
+		VisibleRoles: p.visibleRolesToDto(),
 		Top:          p.Top,
 		LikeCount:    p.LikeCount,
 		CommentCount: p.CommentCount,
@@ -87,6 +97,18 @@ func (p Post) ToDtoWithShortContent() dto.PostListItemResponse {
 		PublishedAt:  p.PublishedAt,
 		CreatedAt:    p.CreatedAt,
 	}
+}
+
+func (p Post) resolvedVisibility() constant.PostVisibility {
+	if p.IsPrivate {
+		return constant.PostVisibilityPrivate
+	}
+
+	if p.Visibility == "" {
+		return constant.PostVisibilityPublic
+	}
+
+	return p.Visibility
 }
 
 func (p Post) CalculateHeat() float64 {
@@ -127,4 +149,19 @@ func (p Post) labelsToDto() []dto.LabelResponse {
 	}
 
 	return labels
+}
+
+func (p Post) visibleRolesToDto() []dto.RoleOptionResponse {
+	roles := make([]dto.RoleOptionResponse, 0, len(p.VisibleRoles))
+
+	for _, role := range p.VisibleRoles {
+		roles = append(roles, dto.RoleOptionResponse{
+			ID:          role.ID,
+			Code:        role.Code,
+			Name:        role.Name,
+			Description: role.Description,
+		})
+	}
+
+	return roles
 }
