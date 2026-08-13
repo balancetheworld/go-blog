@@ -11,6 +11,7 @@ import type {
 } from '@/models/post'
 import type { RoleOption } from '@/models/role'
 import { Eye, Save, Send } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -83,8 +84,8 @@ function readSnapshot(value: string): PostEditorSnapshot | null {
   }
 }
 
-function formatAutoSaveTime(value: string): string {
-  return new Intl.DateTimeFormat('zh-CN', {
+function formatAutoSaveTime(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -98,6 +99,8 @@ export function PostEditor({
   labels,
   roleOptions,
 }: PostEditorProps) {
+  const locale = useLocale()
+  const t = useTranslations('Console.posts')
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState<PostPreview | null>(null)
@@ -108,11 +111,13 @@ export function PostEditor({
   const [autoSaveMessage, setAutoSaveMessage] = useState('')
   const [autoSaveReady, setAutoSaveReady] = useState(false)
   const draftRef = useRef(draft)
+  const roleOptionsRef = useRef(roleOptions)
   const savedDraftRef = useRef(JSON.stringify(initialDraftRef.current))
   const isCreating = post === undefined
   const storageKey = `my-blog:post-editor:${currentUserID}:${post?.id ?? 'new'}`
 
   draftRef.current = draft
+  roleOptionsRef.current = roleOptions
 
   useEffect(() => {
     const storedValue = localStorage.getItem(storageKey)
@@ -142,11 +147,15 @@ export function PostEditor({
       return
     }
 
-    setDraft(snapshot.draft)
-    setAutoSaveMessage(`已恢复 ${formatAutoSaveTime(snapshot.savedAt)} 的本地内容`)
+    const allowedRoleIDs = new Set(roleOptionsRef.current.map(role => role.id))
+    setDraft({
+      ...snapshot.draft,
+      visibleRoleIds: snapshot.draft.visibleRoleIds.filter(roleID => allowedRoleIDs.has(roleID)),
+    })
+    setAutoSaveMessage(t('restored', { time: formatAutoSaveTime(snapshot.savedAt, locale) }))
     setAutoSaveReady(true)
-    toast.info('已恢复未保存的编辑内容')
-  }, [post?.updatedAt, storageKey])
+    toast.info(t('restoredToast'))
+  }, [locale, post?.updatedAt, storageKey, t])
 
   useEffect(() => {
     if (!autoSaveReady)
@@ -158,7 +167,7 @@ export function PostEditor({
       return
     }
 
-    setAutoSaveMessage('正在自动保存到本地')
+    setAutoSaveMessage(t('autoSaving'))
     const timer = window.setTimeout(() => {
       try {
         const savedAt = new Date().toISOString()
@@ -168,15 +177,15 @@ export function PostEditor({
           draft,
         }
         localStorage.setItem(storageKey, JSON.stringify(snapshot))
-        setAutoSaveMessage(`已自动保存到本地 ${formatAutoSaveTime(savedAt)}`)
+        setAutoSaveMessage(t('autoSaved', { time: formatAutoSaveTime(savedAt, locale) }))
       }
       catch {
-        setAutoSaveMessage('本地自动保存失败')
+        setAutoSaveMessage(t('autoSaveFailed'))
       }
     }, 1000)
 
     return () => window.clearTimeout(timer)
-  }, [autoSaveReady, draft, storageKey])
+  }, [autoSaveReady, draft, locale, storageKey, t])
 
   useEffect(() => {
     function saveBeforeLeave() {
@@ -233,7 +242,7 @@ export function PostEditor({
     const categoryID = Number(draft.categoryId)
 
     setPreview({
-      title: draft.title.trim() || '无标题文章',
+      title: draft.title.trim() || t('untitled'),
       description: draft.description.trim(),
       cover: draft.cover.trim(),
       category: categories.find(category => category.id === categoryID),
@@ -256,17 +265,17 @@ export function PostEditor({
     const title = draft.title.trim()
 
     if (!title) {
-      toast.error('请输入文章标题')
+      toast.error(t('titleRequired'))
       return
     }
 
     if (publish && isHTMLContentEmpty(draft.content)) {
-      toast.error('文章正文不能为空')
+      toast.error(t('contentRequired'))
       return
     }
 
     if (draft.visibility === 'roles' && draft.visibleRoleIds.length === 0) {
-      toast.error('请选择至少一个可见身份')
+      toast.error(t('roleRequired'))
       return
     }
 
@@ -298,8 +307,8 @@ export function PostEditor({
       draftRef.current = savedDraft
       localStorage.removeItem(storageKey)
       setDraft(savedDraft)
-      setAutoSaveMessage(publish ? '文章已发布' : '已保存到草稿箱')
-      toast.success(publish ? '文章已发布' : '草稿已保存')
+      setAutoSaveMessage(publish ? t('publishedMessage') : t('savedToDrafts'))
+      toast.success(publish ? t('publishedMessage') : t('draftSaved'))
 
       if (isCreating) {
         router.replace(`/console/posts/edit/${savedPost.id}`)
@@ -309,7 +318,7 @@ export function PostEditor({
       }
     }
     catch {
-      toast.error(isCreating ? '创建文章失败' : '保存文章失败')
+      toast.error(isCreating ? t('createFailed') : t('saveFailed'))
     }
     finally {
       setSaving(false)
@@ -321,11 +330,11 @@ export function PostEditor({
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-black/10 pb-5 dark:border-white/10">
         <div>
           <h1 className="text-2xl font-semibold">
-            {isCreating ? '新建文章' : '编辑文章'}
+            {isCreating ? t('createTitle') : t('editTitle')}
           </h1>
           {!isCreating && (
             <p className="mt-1 text-sm text-neutral-500">
-              {post.status === 'published' ? '已发布' : '草稿'}
+              {post.status === 'published' ? t('published') : t('draft')}
             </p>
           )}
           {autoSaveMessage && (
@@ -335,7 +344,7 @@ export function PostEditor({
       </header>
 
       <label className="block space-y-2">
-        <span className="text-sm">标题</span>
+        <span className="text-sm">{t('titleField')}</span>
         <input
           name="title"
           value={draft.title}
@@ -351,7 +360,7 @@ export function PostEditor({
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="block space-y-2">
-          <span className="text-sm">类型</span>
+          <span className="text-sm">{t('type')}</span>
           <select
             name="type"
             value={draft.type}
@@ -361,13 +370,13 @@ export function PostEditor({
             }))}
             className="min-h-10 w-full rounded-md border border-black/15 px-3 dark:border-white/15"
           >
-            <option value="article">文章</option>
-            <option value="page">页面</option>
+            <option value="article">{t('article')}</option>
+            <option value="page">{t('page')}</option>
           </select>
         </label>
 
         <label className="block space-y-2">
-          <span className="text-sm">分类</span>
+          <span className="text-sm">{t('category')}</span>
           <select
             name="categoryId"
             value={draft.categoryId}
@@ -377,7 +386,7 @@ export function PostEditor({
             }))}
             className="min-h-10 w-full rounded-md border border-black/15 px-3 dark:border-white/15"
           >
-            <option value="">未分类</option>
+            <option value="">{t('uncategorized')}</option>
             {categories.map(category => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
@@ -385,7 +394,7 @@ export function PostEditor({
         </label>
 
         <label className="block space-y-2">
-          <span className="text-sm">封面地址</span>
+          <span className="text-sm">{t('cover')}</span>
           <input
             name="cover"
             type="url"
@@ -401,7 +410,7 @@ export function PostEditor({
       </div>
 
       <label className="block space-y-2">
-        <span className="text-sm">摘要</span>
+        <span className="text-sm">{t('description')}</span>
         <textarea
           name="description"
           value={draft.description}
@@ -417,7 +426,7 @@ export function PostEditor({
 
       {labels.length > 0 && (
         <fieldset className="space-y-3">
-          <legend className="text-sm">标签</legend>
+          <legend className="text-sm">{t('labels')}</legend>
           <div className="flex flex-wrap gap-3">
             {labels.map(label => (
               <label key={label.id} className="inline-flex items-center gap-2 rounded-sm border border-black/10 px-3 py-2 text-sm dark:border-white/10">
@@ -436,7 +445,7 @@ export function PostEditor({
       )}
 
       <section aria-labelledby="content-title">
-        <h2 id="content-title" className="mb-2 text-sm">正文</h2>
+        <h2 id="content-title" className="mb-2 text-sm">{t('content')}</h2>
         <SimpleEditor
           value={draft.content}
           onChange={content => setDraft(current => ({
@@ -449,7 +458,7 @@ export function PostEditor({
 
       <div className="space-y-4">
         <label className="block max-w-sm space-y-2">
-          <span className="text-sm">可见范围</span>
+          <span className="text-sm">{t('visibility')}</span>
           <select
             name="visibility"
             value={draft.visibility}
@@ -459,15 +468,15 @@ export function PostEditor({
             }))}
             className="min-h-10 w-full rounded-md border border-black/15 px-3 dark:border-white/15"
           >
-            <option value="public">公开</option>
-            <option value="roles">指定身份</option>
-            <option value="private">仅作者和管理员</option>
+            <option value="public">{t('public')}</option>
+            <option value="roles">{t('roles')}</option>
+            <option value="private">{t('private')}</option>
           </select>
         </label>
 
         {draft.visibility === 'roles' && (
           <fieldset className="space-y-3">
-            <legend className="text-sm">可见身份</legend>
+            <legend className="text-sm">{t('visibleRoles')}</legend>
             <div className="flex flex-wrap gap-3">
               {roleOptions.map(role => (
                 <label key={role.id} className="inline-flex items-center gap-2 rounded-sm border border-black/10 px-3 py-2 text-sm dark:border-white/10">
@@ -496,7 +505,7 @@ export function PostEditor({
                 top: event.target.checked,
               }))}
             />
-            置顶文章
+            {t('top')}
           </label>
         </div>
       </div>
@@ -509,7 +518,7 @@ export function PostEditor({
           className="inline-flex min-h-10 items-center gap-2 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
         >
           <Eye className="size-4" aria-hidden="true" />
-          预览
+          {t('preview')}
         </button>
 
         <button
@@ -519,7 +528,7 @@ export function PostEditor({
           className="inline-flex min-h-10 items-center gap-2 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
         >
           <Save className="size-4" aria-hidden="true" />
-          保存草稿
+          {t('saveDraft')}
         </button>
 
         <button
@@ -529,7 +538,7 @@ export function PostEditor({
           className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black px-4 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
         >
           <Send className="size-4" aria-hidden="true" />
-          发布
+          {t('publish')}
         </button>
       </footer>
 

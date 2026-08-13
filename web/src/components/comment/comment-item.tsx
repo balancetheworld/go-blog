@@ -3,6 +3,7 @@
 import type { Comment } from '@/models/comment'
 import * as Dialog from '@radix-ui/react-dialog'
 import { ChevronDown, MessageSquareReply, Trash2 } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { deleteComment, listCommentReplies } from '@/api/comment'
@@ -15,16 +16,17 @@ interface CommentItemProps {
   onDeleted: () => void | Promise<void>
 }
 
-const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
 export function CommentItem({
   comment,
   targetAuthorID,
   onDeleted,
 }: CommentItemProps) {
+  const locale = useLocale()
+  const t = useTranslations('Comments')
+  const dateFormatter = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
   const { currentUser, currentRole } = useAuth()
   const [replies, setReplies] = useState<Comment[] | null>(null)
   const [loadingReplies, setLoadingReplies] = useState(false)
@@ -48,7 +50,7 @@ export function CommentItem({
       setReplies(await listCommentReplies(comment.id))
     }
     catch {
-      toast.error('回复加载失败')
+      toast.error(t('repliesFailed'))
     }
     finally {
       setLoadingReplies(false)
@@ -69,10 +71,10 @@ export function CommentItem({
       await deleteComment(comment.id)
       setDeleteOpen(false)
       await onDeleted()
-      toast.success('评论已删除')
+      toast.success(t('deleted'))
     }
     catch {
-      toast.error('评论删除失败')
+      toast.error(t('deleteFailed'))
     }
     finally {
       setDeleting(false)
@@ -80,33 +82,30 @@ export function CommentItem({
   }
 
   return (
-    <article className={comment.depth > 0 ? 'border-l border-black/10 pl-4 dark:border-white/10' : ''}>
-      <div className="py-5">
-        <header className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="truncate font-medium">{authorName}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-neutral-500">
+    <article className={`comment-item${comment.depth > 0 ? ' comment-item-reply' : ''}`}>
+      <div className="comment-avatar">{authorName.charAt(0).toUpperCase()}</div>
+      <div className="comment-body">
+        <header className="comment-meta">
+          <div>
+            <strong>{authorName}</strong>
+            <div className="comment-reply-context">
               <time dateTime={comment.createdAt}>
                 {dateFormatter.format(new Date(comment.createdAt))}
               </time>
               {comment.replyToUser && (
-                <span>
-                  回复
-                  {' '}
-                  {comment.replyToUser.nickname || comment.replyToUser.username}
-                </span>
+                <span>{t('replyTo', { name: comment.replyToUser.nickname || comment.replyToUser.username })}</span>
               )}
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="comment-actions">
             {currentUser && comment.depth < 2 && (
               <button
                 type="button"
-                aria-label={`回复 ${authorName}`}
-                title="回复"
+                aria-label={t('replyTo', { name: authorName })}
+                title={t('reply')}
                 onClick={() => setReplying(current => !current)}
-                className="inline-flex size-9 items-center justify-center"
+                className="comment-icon-action"
               >
                 <MessageSquareReply className="size-4" aria-hidden="true" />
               </button>
@@ -114,10 +113,10 @@ export function CommentItem({
             {canDelete && (
               <button
                 type="button"
-                aria-label="删除评论"
-                title="删除评论"
+                aria-label={t('delete')}
+                title={t('delete')}
                 onClick={() => setDeleteOpen(true)}
-                className="inline-flex size-9 items-center justify-center"
+                className="comment-icon-action"
               >
                 <Trash2 className="size-4" aria-hidden="true" />
               </button>
@@ -125,7 +124,7 @@ export function CommentItem({
           </div>
         </header>
 
-        <p className="mt-3 whitespace-pre-wrap break-words leading-7">
+        <p className="comment-content">
           {comment.content}
         </p>
 
@@ -145,34 +144,33 @@ export function CommentItem({
             type="button"
             disabled={loadingReplies}
             onClick={() => void loadReplies()}
-            className="mt-3 inline-flex min-h-9 items-center gap-1 text-sm font-medium disabled:opacity-50"
+            className="comment-replies-action"
           >
             <ChevronDown className="size-4" aria-hidden="true" />
-            {loadingReplies ? '加载中' : `查看 ${comment.replyCount} 条回复`}
+            {loadingReplies ? t('loadingReplies') : t('viewReplies', { count: comment.replyCount })}
           </button>
         )}
+        {replies && replies.length > 0 && (
+          <div className="comment-replies">
+            {replies.map(reply => (
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                targetAuthorID={targetAuthorID}
+                onDeleted={loadReplies}
+              />
+            ))}
+          </div>
+        )}
       </div>
-
-      {replies && replies.length > 0 && (
-        <div className="space-y-1">
-          {replies.map(reply => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              targetAuthorID={targetAuthorID}
-              onDeleted={loadReplies}
-            />
-          ))}
-        </div>
-      )}
 
       <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/45" />
           <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-xl dark:bg-neutral-950">
-            <Dialog.Title className="text-lg font-semibold">删除评论</Dialog.Title>
+            <Dialog.Title className="text-lg font-semibold">{t('deleteTitle')}</Dialog.Title>
             <Dialog.Description className="mt-2 text-sm text-neutral-500">
-              删除后无法恢复，相关回复也会被删除。
+              {t('deleteDescription')}
             </Dialog.Description>
             <div className="mt-6 flex justify-end gap-3">
               <Dialog.Close asChild>
@@ -181,7 +179,7 @@ export function CommentItem({
                   disabled={deleting}
                   className="min-h-10 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
                 >
-                  取消
+                  {t('cancel')}
                 </button>
               </Dialog.Close>
               <button
@@ -190,7 +188,7 @@ export function CommentItem({
                 onClick={() => void handleDelete()}
                 className="min-h-10 rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50"
               >
-                {deleting ? '删除中' : '删除'}
+                {deleting ? t('deleting') : t('deleteConfirm')}
               </button>
             </div>
           </Dialog.Content>

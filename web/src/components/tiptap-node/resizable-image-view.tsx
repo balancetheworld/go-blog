@@ -3,6 +3,7 @@
 import type { NodeViewProps } from '@tiptap/react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
+import { useTranslations } from 'next-intl'
 import { useEffect, useRef } from 'react'
 
 export function ResizableImageView({
@@ -11,6 +12,7 @@ export function ResizableImageView({
   selected,
   updateAttributes,
 }: NodeViewProps) {
+  const t = useTranslations('Console.editor')
   const imageRef = useRef<HTMLImageElement>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
   const align = node.attrs.align ?? 'center'
@@ -71,16 +73,16 @@ export function ResizableImageView({
         <>
           <button
             type="button"
-            aria-label="从左侧缩放图片"
-            title="拖动缩放图片"
+            aria-label={t('resizeLeft')}
+            title={t('resizeHint')}
             contentEditable={false}
             onPointerDown={event => startResize(event, -1)}
             className="absolute -bottom-1.5 -left-1.5 size-3 cursor-nwse-resize rounded-full border border-white bg-black dark:border-black dark:bg-white"
           />
           <button
             type="button"
-            aria-label="从右侧缩放图片"
-            title="拖动缩放图片"
+            aria-label={t('resizeRight')}
+            title={t('resizeHint')}
             contentEditable={false}
             onPointerDown={event => startResize(event, 1)}
             className="absolute -bottom-1.5 -right-1.5 size-3 cursor-nwse-resize rounded-full border border-white bg-black dark:border-black dark:bg-white"

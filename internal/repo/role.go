@@ -52,7 +52,16 @@ func GetEnabledRolesByIDs(
 
 	var roles []model.Role
 	err := db.WithContext(ctx).
-		Where("id IN ? AND enabled = ?", ids, true).
+		Where(
+			"id IN ? AND enabled = ? AND code NOT IN ?",
+			ids,
+			true,
+			[]string{
+				constant.RoleCodeGuest,
+				constant.RoleCodeAdmin,
+				constant.RoleCodeEditor,
+			},
+		).
 		Find(&roles).
 		Error
 
@@ -66,7 +75,15 @@ func ListEnabledRoles(ctx context.Context) ([]model.Role, error) {
 
 	var roles []model.Role
 	err := db.WithContext(ctx).
-		Where("enabled = ?", true).
+		Where(
+			"enabled = ? AND code NOT IN ?",
+			true,
+			[]string{
+				constant.RoleCodeGuest,
+				constant.RoleCodeAdmin,
+				constant.RoleCodeEditor,
+			},
+		).
 		Order("is_system DESC, id ASC").
 		Find(&roles).
 		Error
@@ -103,7 +120,9 @@ func ListRoles(
 		return nil, 0, errors.New("database is not initialized")
 	}
 
-	query := db.WithContext(ctx).Model(&model.Role{})
+	query := db.WithContext(ctx).
+		Model(&model.Role{}).
+		Where("code <> ?", constant.RoleCodeEditor)
 	if keyword = strings.TrimSpace(keyword); keyword != "" {
 		pattern := "%" + strings.ToLower(keyword) + "%"
 		query = query.Where(
@@ -204,40 +223,174 @@ func EnsureSystemRoles(ctx context.Context) error {
 
 	roles := []model.Role{
 		{
+			Code:          constant.RoleCodeGuest,
+			Name:          "游客",
+			Description:   "未登录访问站点时使用的身份",
+			IsSystem:      true,
+			IsDefault:     false,
+			IsRequestable: false,
+			Enabled:       true,
+		},
+		{
 			Code:          constant.RoleCodeMember,
 			Name:          "普通访客",
+			Description:   "用户登录后的默认身份",
 			IsSystem:      true,
 			IsDefault:     true,
 			IsRequestable: false,
 			Enabled:       true,
 		},
 		{
-			Code:          constant.RoleCodeEditor,
-			Name:          "编辑者",
-			IsSystem:      true,
-			IsDefault:     false,
-			IsRequestable: true,
-			Enabled:       true,
-		},
-		{
 			Code:          constant.RoleCodeAdmin,
 			Name:          "管理员",
+			Description:   "博客主人专用的最高权限身份",
 			IsSystem:      true,
 			IsDefault:     false,
 			IsRequestable: false,
 			Enabled:       true,
 		},
 	}
-	for i := range roles {
-		if err := db.WithContext(ctx).
-			Where("code = ?", roles[i].Code).
-			FirstOrCreate(&roles[i]).
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i := range roles {
+			var role model.Role
+			err := tx.Unscoped().Where("code = ?", roles[i].Code).First(&role).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				if err := tx.Create(&roles[i]).Error; err != nil {
+					return err
+				}
+				continue
+			}
+			if err != nil {
+				return err
+			}
+
+			if err := tx.Unscoped().Model(&role).Updates(map[string]any{
+				"name":           roles[i].Name,
+				"description":    roles[i].Description,
+				"is_system":      roles[i].IsSystem,
+				"is_default":     roles[i].IsDefault,
+				"is_requestable": roles[i].IsRequestable,
+				"enabled":        roles[i].Enabled,
+				"deleted_at":     nil,
+			}).Error; err != nil {
+				return err
+			}
+		}
+
+		var editorRole model.Role
+		err := tx.Unscoped().Where("code = ?", constant.RoleCodeEditor).First(&editorRole).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			editorRole = model.Role{
+				Code:          constant.RoleCodeEditor,
+				Name:          "编辑者",
+				Description:   "已停用的旧版内容编辑身份",
+				IsRequestable: false,
+				Enabled:       false,
+			}
+			return tx.Create(&editorRole).Error
+		}
+		if err != nil {
+			return err
+		}
+
+		return tx.Unscoped().Model(&editorRole).Updates(map[string]any{
+			"description":    "已停用的旧版内容编辑身份",
+			"is_system":      false,
+			"is_default":     false,
+			"is_requestable": false,
+			"enabled":        false,
+			"deleted_at":     nil,
+		}).Error
+	})
+}
+
+func RetireEditorRole(ctx context.Context) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	var editorRole model.Role
+	if err := db.WithContext(ctx).
+		Unscoped().
+		Where("code = ?", constant.RoleCodeEditor).
+		First(&editorRole).
+		Error; err != nil {
+		return err
+	}
+
+	var memberRole model.Role
+	if err := db.WithContext(ctx).
+		Where("code = ?", constant.RoleCodeMember).
+		First(&memberRole).
+		Error; err != nil {
+		return err
+	}
+
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).
+			Where("role = ? OR role_id = ?", constant.RoleEditor, editorRole.ID).
+			Updates(map[string]any{
+				"role":    constant.RoleUser,
+				"role_id": memberRole.ID,
+			}).
 			Error; err != nil {
 			return err
 		}
+
+		var excludedRoleIDs []uint
+		if err := tx.Model(&model.Role{}).
+			Unscoped().
+			Where(
+				"code IN ?",
+				[]string{
+					constant.RoleCodeGuest,
+					constant.RoleCodeAdmin,
+					constant.RoleCodeEditor,
+				},
+			).
+			Pluck("id", &excludedRoleIDs).
+			Error; err != nil {
+			return err
+		}
+
+		if err := tx.Table("post_visible_roles").
+			Where("role_id IN ?", excludedRoleIDs).
+			Delete(nil).
+			Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func EnforceRootAdminRole(ctx context.Context) error {
+	if db == nil {
+		return errors.New("database is not initialized")
 	}
 
-	return nil
+	memberRole, err := GetRoleByCode(ctx, constant.RoleCodeMember)
+	if err != nil {
+		return err
+	}
+	adminRole, err := GetRoleByCode(ctx, constant.RoleCodeAdmin)
+	if err != nil {
+		return err
+	}
+
+	return db.WithContext(ctx).
+		Model(&model.User{}).
+		Where(
+			"is_root = ? AND (role = ? OR role_id = ?)",
+			false,
+			constant.RoleAdmin,
+			adminRole.ID,
+		).
+		Updates(map[string]any{
+			"role":    constant.RoleUser,
+			"role_id": memberRole.ID,
+		}).
+		Error
 }
 
 func BackfillUserRoleIDs(ctx context.Context) error {
@@ -250,7 +403,6 @@ func BackfillUserRoleIDs(ctx context.Context) error {
 		RoleCode   string
 	}{
 		{constant.RoleUser, constant.RoleCodeMember},
-		{constant.RoleEditor, constant.RoleCodeEditor},
 		{constant.RoleAdmin, constant.RoleCodeAdmin},
 	}
 

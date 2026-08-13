@@ -4,6 +4,7 @@ import type {
   CommentContentTargetType,
   CommentListResponse,
 } from '@/models/comment'
+import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useState } from 'react'
 import { listComments } from '@/api/comment'
 import { CommentInput } from './comment-input'
@@ -20,6 +21,7 @@ export function CommentSection({
   targetID,
   targetAuthorID,
 }: CommentSectionProps) {
+  const t = useTranslations('Comments')
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<CommentListResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,12 +40,12 @@ export function CommentSection({
       }))
     }
     catch {
-      setError('评论暂时无法加载')
+      setError(t('loadFailed'))
     }
     finally {
       setLoading(false)
     }
-  }, [page, targetID, targetType])
+  }, [page, t, targetID, targetType])
 
   useEffect(() => {
     void loadComments()
@@ -72,31 +74,26 @@ export function CommentSection({
     : 1
 
   return (
-    <section aria-labelledby="comments-title" className="mx-auto mt-10 w-full max-w-3xl">
-      <header className="border-t border-black/10 pt-8 dark:border-white/10">
-        <h2 id="comments-title" className="text-xl font-semibold">评论</h2>
-      </header>
-
-      <CommentInput
-        targetType={targetType}
-        targetID={targetID}
-        onCreated={handleCreated}
-      />
+    <section aria-labelledby="comments-title" className="article-comments">
+      <div className="article-comments-head">
+        <h2 id="comments-title">{t('title')}</h2>
+        <span>{t('count', { count: result?.total ?? 0 })}</span>
+      </div>
 
       {loading && (
-        <div className="min-h-24 py-6 text-sm text-neutral-500">正在加载评论</div>
+        <div className="comment-state">{t('loading')}</div>
       )}
 
       {!loading && error && (
-        <p className="py-6 text-sm text-red-600">{error}</p>
+        <p className="comment-state comment-state-error">{error}</p>
       )}
 
       {!loading && !error && result?.items.length === 0 && (
-        <p className="py-6 text-sm text-neutral-500">暂无评论</p>
+        <p className="comment-state">{t('empty')}</p>
       )}
 
       {!loading && !error && result && result.items.length > 0 && (
-        <div className="divide-y divide-black/10 border-y border-black/10 dark:divide-white/10 dark:border-white/10">
+        <div className="comment-list">
           {result.items.map(comment => (
             <CommentItem
               key={comment.id}
@@ -109,14 +106,13 @@ export function CommentSection({
       )}
 
       {result && totalPages > 1 && (
-        <nav aria-label="评论分页" className="flex items-center justify-between pt-5 text-sm">
+        <nav aria-label={t('pagination')} className="comment-pagination">
           <button
             type="button"
             disabled={page <= 1 || loading}
             onClick={() => setPage(current => current - 1)}
-            className="disabled:text-neutral-400"
           >
-            上一页
+            {t('previous')}
           </button>
           <span>
             {page}
@@ -127,12 +123,17 @@ export function CommentSection({
             type="button"
             disabled={page >= totalPages || loading}
             onClick={() => setPage(current => current + 1)}
-            className="disabled:text-neutral-400"
           >
-            下一页
+            {t('next')}
           </button>
         </nav>
       )}
+
+      <CommentInput
+        targetType={targetType}
+        targetID={targetID}
+        onCreated={handleCreated}
+      />
     </section>
   )
 }

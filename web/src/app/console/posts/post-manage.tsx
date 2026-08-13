@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import type { PostListResponse } from '@/models/post'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -17,17 +18,14 @@ interface PostManageProps {
   basePath?: string
 }
 
-// 创建一个**中文、中等长度样式**的全局日期格式化工具，传入 Date 就能直接输出 `2026年8月7日` 格式的中文日期
-const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
-  dateStyle: 'medium',
-})
-
 export function PostManage({
   result,
   initialKeyword,
-  title = '文章管理',
+  title,
   basePath = '/console/posts',
 }: PostManageProps) {
+  const locale = useLocale()
+  const t = useTranslations('Console.posts')
   const router = useRouter()
   const [keyword, setKeyword] = useState(initialKeyword)
   const [deletingID, setDeletingID] = useState<number | null>(null)
@@ -60,12 +58,12 @@ export function PostManage({
 
     try {
       await deletePost(pendingDelete.id)
-      toast.success('文章已删除')
+      toast.success(t('deleted'))
       setPendingDelete(null)
       router.refresh()
     }
     catch {
-      toast.error('删除文章失败')
+      toast.error(t('deleteFailed'))
     }
     finally {
       setDeletingID(null)
@@ -83,13 +81,9 @@ export function PostManage({
       <div className="space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 id="posts-title" className="text-2xl font-semibold">{title}</h1>
+            <h1 id="posts-title" className="text-2xl font-semibold">{title || t('title')}</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              共
-              {' '}
-              {result.total}
-              {' '}
-              篇文章
+              {t('count', { count: result.total })}
             </p>
           </div>
 
@@ -98,23 +92,23 @@ export function PostManage({
             className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black px-4 text-sm text-white dark:bg-white dark:text-black"
           >
             <Plus className="size-4" aria-hidden="true" />
-            新建文章
+            {t('new')}
           </Link>
         </header>
 
         <form onSubmit={handleSearch} className="flex max-w-lg gap-2">
           <input
-            aria-label="搜索文章"
+            aria-label={t('search')}
             value={keyword}
             onChange={event => setKeyword(event.target.value)}
-            placeholder="搜索文章"
+            placeholder={t('search')}
             className="min-h-10 min-w-0 flex-1 rounded-md border border-black/15 px-3 dark:border-white/15"
           />
           <button
             type="submit"
             className="inline-flex size-10 items-center justify-center rounded-md border border-black/15 dark:border-white/15"
-            aria-label="搜索"
-            title="搜索"
+            aria-label={t('searchAction')}
+            title={t('searchAction')}
           >
             <Search className="size-4" aria-hidden="true" />
           </button>
@@ -124,12 +118,12 @@ export function PostManage({
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="text-neutral-500">
               <tr>
-                <th className="px-3 py-3">标题</th>
-                <th className="px-3 py-3">状态</th>
-                <th className="px-3 py-3">分类</th>
-                <th className="px-3 py-3">可见范围</th>
-                <th className="px-3 py-3">发布时间</th>
-                <th className="px-3 py-3">操作</th>
+                <th className="px-3 py-3">{t('columnTitle')}</th>
+                <th className="px-3 py-3">{t('status')}</th>
+                <th className="px-3 py-3">{t('category')}</th>
+                <th className="px-3 py-3">{t('visibility')}</th>
+                <th className="px-3 py-3">{t('publishedAt')}</th>
+                <th className="px-3 py-3">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -137,34 +131,34 @@ export function PostManage({
                 <tr key={post.id} className="border-t border-black/10 dark:border-white/10">
                   <td className="px-3 py-4 font-medium">{post.title}</td>
                   <td className="px-3 py-4">
-                    {post.status === 'published' ? '已发布' : '草稿'}
+                    {post.status === 'published' ? t('published') : t('draft')}
                   </td>
-                  <td className="px-3 py-4">{post.category?.name ?? '未分类'}</td>
+                  <td className="px-3 py-4">{post.category?.name ?? t('uncategorized')}</td>
                   <td className="px-3 py-4">
                     {post.visibility === 'private'
-                      ? '仅作者和管理员'
+                      ? t('private')
                       : post.visibility === 'roles'
                         ? post.visibleRoles.map(role => role.name).join('、')
-                        : '公开'}
+                        : t('public')}
                   </td>
                   <td className="px-3 py-4">
                     {post.publishedAt
-                      ? dateFormatter.format(new Date(post.publishedAt))
-                      : '未发布'}
+                      ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(post.publishedAt))
+                      : t('unpublished')}
                   </td>
                   <td className="flex gap-2 px-3 py-4">
                     <Link
                       href={`/console/posts/edit/${post.id}`}
-                      aria-label="编辑文章"
-                      title="编辑文章"
+                      aria-label={t('editAction')}
+                      title={t('editAction')}
                       className="inline-flex size-9 items-center justify-center"
                     >
                       <Pencil className="size-4" aria-hidden="true" />
                     </Link>
                     <button
                       type="button"
-                      aria-label="删除文章"
-                      title="删除文章"
+                      aria-label={t('deleteAction')}
+                      title={t('deleteAction')}
                       disabled={deletingID !== null}
                       className="inline-flex size-9 items-center justify-center disabled:opacity-50"
                       onClick={() => setPendingDelete({ id: post.id, title: post.title })}
@@ -177,7 +171,7 @@ export function PostManage({
               {result.items.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-12 text-center text-neutral-500">
-                    暂无文章
+                    {t('empty')}
                   </td>
                 </tr>
               )}
@@ -190,12 +184,10 @@ export function PostManage({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/45" />
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-xl dark:bg-neutral-950">
           <Dialog.Title className="text-lg font-semibold">
-            删除文章
+            {t('deleteTitle')}
           </Dialog.Title>
           <Dialog.Description className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
-            确定删除文章“
-            {pendingDelete?.title}
-            ”吗？删除后无法恢复。
+            {t('deleteDescription', { title: pendingDelete?.title ?? '' })}
           </Dialog.Description>
           <div className="mt-6 flex justify-end gap-3">
             <Dialog.Close asChild>
@@ -204,7 +196,7 @@ export function PostManage({
                 disabled={deletingID !== null}
                 className="min-h-10 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
               >
-                取消
+                {t('cancel')}
               </button>
             </Dialog.Close>
             <button
@@ -213,7 +205,7 @@ export function PostManage({
               onClick={() => void handleDelete()}
               className="min-h-10 rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50"
             >
-              {deletingID === null ? '删除' : '删除中'}
+              {deletingID === null ? t('delete') : t('deleting')}
             </button>
           </div>
         </Dialog.Content>

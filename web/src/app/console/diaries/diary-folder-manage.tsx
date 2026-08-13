@@ -3,6 +3,7 @@
 import type { FormEvent } from 'react'
 import type { DiaryFolder } from '@/models/diary'
 import { FolderPlus, Trash2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -13,6 +14,7 @@ interface DiaryFolderManageProps {
 }
 
 export function DiaryFolderManage({ folders }: DiaryFolderManageProps) {
+  const t = useTranslations('Console.diaries')
   const router = useRouter()
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -35,11 +37,11 @@ export function DiaryFolderManage({ folders }: DiaryFolderManageProps) {
         visibleRoleIds: [],
       })
       setName('')
-      toast.success('文件夹已创建')
+      toast.success(t('folderCreated'))
       router.refresh()
     }
     catch {
-      toast.error('创建文件夹失败')
+      toast.error(t('folderCreateFailed'))
     }
     finally {
       setSaving(false)
@@ -53,11 +55,11 @@ export function DiaryFolderManage({ folders }: DiaryFolderManageProps) {
     setDeletingID(id)
     try {
       await deleteDiaryFolder(id)
-      toast.success('文件夹已删除')
+      toast.success(t('folderDeleted'))
       router.refresh()
     }
     catch {
-      toast.error('删除文件夹失败')
+      toast.error(t('folderDeleteFailed'))
     }
     finally {
       setDeletingID(null)
@@ -67,15 +69,15 @@ export function DiaryFolderManage({ folders }: DiaryFolderManageProps) {
   return (
     <section aria-labelledby="diary-folders-title" className="space-y-4 border-t border-black/10 pt-6 dark:border-white/10">
       <div>
-        <h2 id="diary-folders-title" className="text-lg font-semibold">日记文件夹</h2>
-        <p className="mt-1 text-sm text-neutral-500">删除文件夹不会删除其中的日记</p>
+        <h2 id="diary-folders-title" className="text-lg font-semibold">{t('foldersTitle')}</h2>
+        <p className="mt-1 text-sm text-neutral-500">{t('folderDescription')}</p>
       </div>
       <form onSubmit={handleCreate} className="flex max-w-xl gap-2">
         <input
           value={name}
           maxLength={100}
           required
-          placeholder="文件夹名称"
+          placeholder={t('folderName')}
           onChange={event => setName(event.target.value)}
           className="min-h-10 min-w-0 flex-1 rounded-md border border-black/15 px-3 dark:border-white/15"
         />
@@ -85,7 +87,7 @@ export function DiaryFolderManage({ folders }: DiaryFolderManageProps) {
           className="inline-flex min-h-10 items-center gap-2 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
         >
           <FolderPlus className="size-4" aria-hidden="true" />
-          {saving ? '创建中' : '创建'}
+          {saving ? t('creatingFolder') : t('createFolder')}
         </button>
       </form>
       {folders.length > 0 && (
@@ -100,8 +102,8 @@ export function DiaryFolderManage({ folders }: DiaryFolderManageProps) {
                 type="button"
                 disabled={deletingID !== null}
                 onClick={() => void handleDelete(folder.id)}
-                aria-label={`删除文件夹 ${folder.name}`}
-                title="删除文件夹"
+                aria-label={t('deleteFolder', { name: folder.name })}
+                title={t('deleteFolderTitle')}
                 className="inline-flex size-7 items-center justify-center text-red-600 disabled:opacity-50"
               >
                 <Trash2 className="size-4" aria-hidden="true" />

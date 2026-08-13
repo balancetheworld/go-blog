@@ -1,5 +1,8 @@
 import type { DiaryFolder } from '@/models/diary'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
+import { DiaryFolderMedia } from '@/components/diary/diary-folder-media'
+import { getDiaryFolderMedia, getDiaryFolderStyle, isDiaryFolderSlug } from '@/lib/diary-folders'
 
 interface DiaryFolderCardProps {
   folder: DiaryFolder
@@ -10,18 +13,27 @@ export function DiaryFolderCard({
   folder,
   active = false,
 }: DiaryFolderCardProps) {
+  const t = useTranslations('Diary')
+  const folderStyle = getDiaryFolderStyle(folder.slug)
+  const folderMedia = getDiaryFolderMedia(folder.slug)
+  const folderName = isDiaryFolderSlug(folder.slug)
+    ? t(`folders.${folder.slug}`)
+    : folder.name
+
   return (
     <Link
       href={`/diary?folder=${folder.id}`}
       aria-current={active ? 'page' : undefined}
-      className={`block rounded-md border p-4 ${active ? 'border-black dark:border-white' : 'border-black/10 dark:border-white/10'}`}
+      className={`diary-folder ${folderStyle}${active ? ' is-active' : ''}`}
     >
-      <p className="font-medium">{folder.name}</p>
-      {folder.description && (
-        <p className="mt-1 line-clamp-2 text-sm leading-6 text-neutral-500">
-          {folder.description}
-        </p>
-      )}
+      <span className="folder-paper paper-one" />
+      <span className="folder-paper paper-two" />
+      <span className="folder-back" />
+      <span className="folder-front">
+        <DiaryFolderMedia media={folderMedia} />
+      </span>
+      <span className="folder-tab">{folderName}</span>
+      <span className="folder-meta">{folder.description || t('view')}</span>
     </Link>
   )
 }

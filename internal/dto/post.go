@@ -103,6 +103,7 @@ type PostDetailResponse struct {
 	VisibleRoles []RoleOptionResponse    `json:"visible_roles"`
 	Top          bool                    `json:"top"`
 	LikeCount    uint64                  `json:"like_count"`
+	Liked        bool                    `json:"liked"`
 	CommentCount uint64                  `json:"comment_count"`
 	ViewCount    uint64                  `json:"view_count"`
 	Heat         float64                 `json:"heat"`
@@ -110,6 +111,11 @@ type PostDetailResponse struct {
 	PublishedAt  *time.Time              `json:"published_at"`
 	CreatedAt    time.Time               `json:"created_at"`
 	UpdatedAt    time.Time               `json:"updated_at"`
+}
+
+type PostLikeResponse struct {
+	Liked     bool   `json:"liked"`
+	LikeCount uint64 `json:"like_count"`
 }
 
 type PostListItemResponse struct {

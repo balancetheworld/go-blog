@@ -40,6 +40,7 @@ const (
 	TargetPage    TargetType = "page"    // 独立页面
 	TargetComment TargetType = "comment" // 评论
 	TargetDiary   TargetType = "diary"   // 日记
+	TargetGuestbook TargetType = "guestbook"
 )
 
 // APIPrefix 全局API路由统一前缀

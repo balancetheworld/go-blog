@@ -108,8 +108,10 @@ func migrate() error {
 		&model.Category{},
 		&model.Label{},
 		&model.Post{},
+		&model.PostLike{},
 		&model.DiaryFolder{},
 		&model.Diary{},
+		&model.Moment{},
 		&model.Comment{},
 	); err != nil {
 		return err
@@ -137,11 +139,23 @@ func migrate() error {
 
 	ctx := context.Background()
 
+	if err := EnsureFixedDiaryFolders(ctx); err != nil {
+		return err
+	}
+
 	if err := EnsureSystemRoles(ctx); err != nil {
 		return err
 	}
 
 	if err := BackfillUserRoleIDs(ctx); err != nil {
+		return err
+	}
+
+	if err := RetireEditorRole(ctx); err != nil {
+		return err
+	}
+
+	if err := EnforceRootAdminRole(ctx); err != nil {
 		return err
 	}
 

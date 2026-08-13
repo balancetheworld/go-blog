@@ -1,13 +1,17 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
-import { getLocale, getMessages } from 'next-intl/server'
+import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Providers } from '@/components/providers'
 import 'highlight.js/styles/github-dark.css'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: '我的博客',
-  description: '记录技术、生活与思考',
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('Metadata')
+
+  return {
+    title: t('title'),
+    description: t('description'),
+  }
 }
 
 interface RootLayoutProps {

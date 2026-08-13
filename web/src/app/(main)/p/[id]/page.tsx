@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import {
   getPost,
@@ -39,6 +40,7 @@ export async function generateMetadata({
 export default async function PostPage({
   params,
 }: PostPageProps) {
+  const t = await getTranslations('Post')
   const { id } = await params
 
   let post
@@ -55,12 +57,12 @@ export default async function PostPage({
       && (error.status === 401 || error.status === 403)
     ) {
       return (
-        <section className="border-y border-black/10 py-12 dark:border-white/10">
-          <h1 className="text-2xl font-semibold">无权访问这篇文章</h1>
-          <p className="mt-3 text-neutral-600 dark:text-neutral-400">
-            请使用有权限的账号登录后重试。
-          </p>
-        </section>
+        <main className="article-detail-main">
+          <section className="article-detail-shell article-empty visible">
+            <h1>{t('forbiddenTitle')}</h1>
+            <p>{t('forbiddenDescription')}</p>
+          </section>
+        </main>
       )
     }
 
@@ -72,13 +74,14 @@ export default async function PostPage({
   }
 
   return (
-    <>
-      <BlogPost post={post} />
-      <CommentSection
-        targetType={post.type === 'page' ? 'page' : 'post'}
-        targetID={post.id}
-        targetAuthorID={post.author.id}
-      />
-    </>
+    <main className="article-detail-main">
+      <BlogPost post={post}>
+        <CommentSection
+          targetType={post.type === 'page' ? 'page' : 'post'}
+          targetID={post.id}
+          targetAuthorID={post.author.id}
+        />
+      </BlogPost>
+    </main>
   )
 }

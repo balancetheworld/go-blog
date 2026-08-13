@@ -1,16 +1,19 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
+import { LogoutDialog } from '@/components/auth/logout-dialog'
 import { useAuth } from '@/contexts/auth-context'
 
 export function UserNavigation() {
+  const t = useTranslations('Common')
+  const applicationT = useTranslations('Auth.roleApplication')
   const {
     currentUser,
     currentRole,
     currentIdentity,
     roleApplication,
     isLoading,
-    logout,
   } = useAuth()
 
   if (isLoading) {
@@ -20,8 +23,8 @@ export function UserNavigation() {
   if (!currentUser) {
     return (
       <div className="flex items-center gap-3 text-sm">
-        <Link href="/auth/login" className="font-medium">登录</Link>
-        <Link href="/auth/register" className="font-medium">注册</Link>
+        <Link href="/auth/login" className="font-medium">{t('login')}</Link>
+        <Link href="/auth/register" className="font-medium">{t('register')}</Link>
       </div>
     )
   }
@@ -40,8 +43,7 @@ export function UserNavigation() {
 
       {roleApplication?.status === 'pending' && (
         <span className="text-amber-600">
-          {roleApplication.requestedRole.name}
-          审核中
+          {applicationT('pending', { role: roleApplication.requestedRole.name })}
         </span>
       )}
 
@@ -50,24 +52,23 @@ export function UserNavigation() {
           className="text-red-600"
           title={roleApplication.rejectReason || undefined}
         >
-          {roleApplication.requestedRole.name}
-          申请已拒绝
+          {applicationT('rejected', { role: roleApplication.requestedRole.name })}
         </span>
       )}
 
       {(currentRole === 'editor' || currentRole === 'admin') && (
         <Link href="/console" className="font-medium">
-          管理后台
+          {t('console')}
         </Link>
       )}
 
-      <button
-        type="button"
-        onClick={() => void logout()}
-        className="font-medium"
-      >
-        退出登录
-      </button>
+      <LogoutDialog
+        trigger={(
+          <button type="button" className="font-medium">
+            {t('logout')}
+          </button>
+        )}
+      />
     </div>
   )
 }

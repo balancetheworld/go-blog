@@ -2,6 +2,7 @@
 
 import type { FormEvent } from 'react'
 import type { CommentTargetType } from '@/models/comment'
+import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
@@ -26,6 +27,7 @@ export function CommentInput({
   replyToName,
   autoFocus = false,
 }: CommentInputProps) {
+  const t = useTranslations('Comments')
   const pathname = usePathname()
   const { currentUser, isLoading } = useAuth()
   const [content, setContent] = useState('')
@@ -48,10 +50,10 @@ export function CommentInput({
       })
       setContent('')
       await onCreated()
-      toast.success(replyToName ? '回复已发布' : '评论已发布')
+      toast.success(replyToName ? t('replyPublished') : t('published'))
     }
     catch {
-      toast.error(replyToName ? '回复发布失败' : '评论发布失败')
+      toast.error(replyToName ? t('replyFailed') : t('publishFailed'))
     }
     finally {
       setSubmitting(false)
@@ -59,55 +61,49 @@ export function CommentInput({
   }
 
   if (isLoading)
-    return <div className="min-h-24" />
+    return <div className="comment-state" />
 
   if (!currentUser) {
     return (
-      <div className="border-y border-black/10 py-5 text-sm dark:border-white/10">
-        <span className="text-neutral-600 dark:text-neutral-400">
-          登录后可以参与评论。
-        </span>
+      <div className="comment-login-prompt">
+        <span>{t('loginPrompt')}</span>
         <Link
           href={`/auth/login?next=${encodeURIComponent(pathname)}`}
-          className="ml-2 font-medium"
         >
-          前往登录
+          {t('goLogin')}
         </Link>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 py-5">
-      <label className="block text-sm font-medium">
-        {replyToName ? `回复 ${replyToName}` : '发表评论'}
-        <textarea
-          autoFocus={autoFocus}
-          rows={replyToName ? 3 : 5}
-          required
-          maxLength={2000}
-          value={content}
-          onChange={event => setContent(event.target.value)}
-          className="mt-2 w-full resize-y rounded-md border border-black/20 p-3 font-normal dark:border-white/20"
-        />
-      </label>
-      <div className="flex justify-end gap-2">
+    <form onSubmit={handleSubmit} className="comment-form">
+      <textarea
+        aria-label={replyToName ? t('replyTo', { name: replyToName }) : t('write')}
+        placeholder={replyToName ? t('replyPlaceholder', { name: replyToName }) : t('placeholder')}
+        autoFocus={autoFocus}
+        rows={replyToName ? 3 : 4}
+        required
+        maxLength={2000}
+        value={content}
+        onChange={event => setContent(event.target.value)}
+      />
+      <div className="comment-form-actions">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
             disabled={submitting}
-            className="min-h-9 rounded-md border border-black/15 px-3 text-sm disabled:opacity-50 dark:border-white/15"
+            className="comment-secondary-action"
           >
-            取消
+            {t('cancel')}
           </button>
         )}
         <button
           type="submit"
           disabled={submitting || !content.trim()}
-          className="min-h-9 rounded-md bg-black px-4 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
         >
-          {submitting ? '提交中' : replyToName ? '提交回复' : '提交评论'}
+          {submitting ? t('submitting') : replyToName ? t('submitReply') : t('submit')}
         </button>
       </div>
     </form>

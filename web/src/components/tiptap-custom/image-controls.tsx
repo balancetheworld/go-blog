@@ -2,6 +2,7 @@
 
 import type { Editor } from '@tiptap/react'
 import type { ChangeEvent } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRef, useState } from 'react'
 import { uploadImage } from '@/api/file'
 import { AlignCenter, AlignLeft, AlignRight, ImagePlus, Upload } from '@/components/tiptap-icons'
@@ -15,6 +16,7 @@ interface ImageControlsProps {
 }
 
 export function ImageControls({ editor, disabled = false }: ImageControlsProps) {
+  const t = useTranslations('Console.editor')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [url, setURL] = useState('')
   const [error, setError] = useState('')
@@ -23,7 +25,7 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
 
   function handleInsert() {
     if (!isSafeImageURL(url)) {
-      setError('请输入有效的 HTTP(S) 或站内图片地址')
+      setError(t('invalidImageUrl'))
       return
     }
 
@@ -44,11 +46,11 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
       return
 
     if (!['image/gif', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('仅支持 JPEG、PNG、GIF 和 WebP 图片')
+      setError(t('imageType'))
       return
     }
     if (file.size > 10 * 1024 * 1024) {
-      setError('图片不能超过 10 MB')
+      setError(t('imageSize'))
       return
     }
 
@@ -60,7 +62,7 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
       editor?.chain().focus().setImage({ src: image.url, alt: file.name }).run()
     }
     catch {
-      setError('图片上传失败')
+      setError(t('imageUploadFailed'))
     }
     finally {
       setUploading(false)
@@ -70,10 +72,10 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
   return (
     <>
       <EditorPopover
-        ariaLabel="插入图片"
+        ariaLabel={t('insertImage')}
         trigger={(
           <EditorButton
-            label="插入图片"
+            label={t('insertImage')}
             disabled={!editor || disabled}
             onClick={() => {}}
           >
@@ -96,15 +98,15 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
             className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-sm border border-black/15 px-3 text-sm disabled:opacity-50 dark:border-white/15"
           >
             <Upload className="size-4" aria-hidden="true" />
-            {uploading ? '上传中' : '上传本地图片'}
+            {uploading ? t('uploading') : t('uploadLocal')}
           </button>
           <div className="flex items-center gap-2 text-xs text-neutral-500">
             <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
-            或使用图片地址
+            {t('orUseUrl')}
             <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
           </div>
           <label className="block space-y-1">
-            <span className="text-xs text-neutral-600 dark:text-neutral-400">图片地址</span>
+            <span className="text-xs text-neutral-600 dark:text-neutral-400">{t('imageUrl')}</span>
             <input
               type="text"
               value={url}
@@ -122,14 +124,14 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
             onClick={handleInsert}
             className="min-h-9 w-full rounded-sm bg-black px-3 text-sm text-white dark:bg-white dark:text-black"
           >
-            插入
+            {t('insert')}
           </button>
         </div>
       </EditorPopover>
       {imageSelected && (
         <>
           <EditorButton
-            label="图片左对齐"
+            label={t('imageLeft')}
             active={editor?.getAttributes('image').align === 'left'}
             disabled={disabled}
             onClick={() => setAlign('left')}
@@ -137,7 +139,7 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
             <AlignLeft className="size-4" aria-hidden="true" />
           </EditorButton>
           <EditorButton
-            label="图片居中"
+            label={t('imageCenter')}
             active={editor?.getAttributes('image').align === 'center'}
             disabled={disabled}
             onClick={() => setAlign('center')}
@@ -145,7 +147,7 @@ export function ImageControls({ editor, disabled = false }: ImageControlsProps) 
             <AlignCenter className="size-4" aria-hidden="true" />
           </EditorButton>
           <EditorButton
-            label="图片右对齐"
+            label={t('imageRight')}
             active={editor?.getAttributes('image').align === 'right'}
             disabled={disabled}
             onClick={() => setAlign('right')}

@@ -3,6 +3,8 @@
 import type { FormEvent } from 'react'
 import type { RoleOption } from '@/models/role'
 import axios from 'axios'
+import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -15,6 +17,7 @@ import { Captcha } from '@/components/auth/captcha'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function RegisterPage() {
+  const t = useTranslations('Auth.register')
   const router = useRouter()
   const { refreshUser } = useAuth()
   const [email, setEmail] = useState('')
@@ -36,7 +39,7 @@ export default function RegisterPage() {
       }
       catch {
         if (!cancelled)
-          toast.error('身份列表加载失败')
+          toast.error(t('rolesFailed'))
       }
       finally {
         if (!cancelled)
@@ -63,7 +66,7 @@ export default function RegisterPage() {
 
   async function handleSendCode() {
     if (!email) {
-      toast.error('请先填写邮箱')
+      toast.error(t('emailRequired'))
       return
     }
 
@@ -72,7 +75,7 @@ export default function RegisterPage() {
     try {
       await requestEmailVerify({ email })
       setCodeCooldown(60)
-      toast.success('验证码已发送')
+      toast.success(t('codeSent'))
     }
     catch (error) {
       if (
@@ -80,11 +83,11 @@ export default function RegisterPage() {
         && error.response?.status === 429
       ) {
         setCodeCooldown(60)
-        toast.error('请求过于频繁，请稍后再试')
+        toast.error(t('tooManyRequests'))
         return
       }
 
-      toast.error('验证码发送失败')
+      toast.error(t('codeFailed'))
     }
     finally {
       setSendingCode(false)
@@ -112,12 +115,12 @@ export default function RegisterPage() {
       })
       await refreshUser()
 
-      toast.success('注册成功')
+      toast.success(t('success'))
       router.replace('/')
       router.refresh()
     }
     catch {
-      toast.error('注册失败，请检查填写内容')
+      toast.error(t('failed'))
     }
     finally {
       setSubmitting(false)
@@ -125,103 +128,131 @@ export default function RegisterPage() {
   }
 
   return (
-    <main>
-      <form onSubmit={handleSubmit}>
-        <h1>注册</h1>
+    <main className="auth-page-main">
+      <section className="section auth-section">
+        <div className="auth-shell">
+          <form className="auth-card auth-card-register" onSubmit={handleSubmit}>
+            <div className="auth-card-head">
+              <span>{t('title')}</span>
+              <small>{t('subtitle')}</small>
+            </div>
 
-        <label htmlFor="email">邮箱</label>
-        <div>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={event => setEmail(event.target.value)}
-          />
-          <button
-            type="button"
-            disabled={!email || sendingCode || codeCooldown > 0}
-            onClick={handleSendCode}
-          >
-            {sendingCode
-              ? '发送中...'
-              : codeCooldown > 0
-                ? `${codeCooldown} 秒后重试`
-                : '发送验证码'}
-          </button>
+            <label className="auth-field" htmlFor="email">
+              <span>{t('email')}</span>
+              <span className="auth-inline-field">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  required
+                  value={email}
+                  onChange={event => setEmail(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="auth-inline-action"
+                  disabled={!email || sendingCode || codeCooldown > 0}
+                  onClick={handleSendCode}
+                >
+                  {sendingCode
+                    ? t('sendingCode')
+                    : codeCooldown > 0
+                      ? t('cooldown', { seconds: codeCooldown })
+                      : t('sendCode')}
+                </button>
+              </span>
+            </label>
+
+            <label className="auth-field" htmlFor="emailCode">
+              <span>{t('emailCode')}</span>
+              <input
+                id="emailCode"
+                name="emailCode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder={t('emailCodePlaceholder')}
+                minLength={6}
+                maxLength={6}
+                required
+              />
+            </label>
+
+            <label className="auth-field" htmlFor="username">
+              <span>{t('username')}</span>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                placeholder={t('usernamePlaceholder')}
+                minLength={3}
+                maxLength={32}
+                required
+              />
+            </label>
+
+            <label className="auth-field" htmlFor="nickname">
+              <span>{t('nickname')}</span>
+              <input
+                id="nickname"
+                name="nickname"
+                type="text"
+                autoComplete="nickname"
+                placeholder={t('nicknamePlaceholder')}
+                maxLength={64}
+              />
+            </label>
+
+            <label className="auth-field" htmlFor="requestedRoleId">
+              <span>{t('requestedRole')}</span>
+              <select
+                id="requestedRoleId"
+                name="requestedRoleId"
+                defaultValue=""
+                disabled={loadingRoles}
+              >
+                <option value="">{t('defaultRole')}</option>
+                {roles.map(role => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="auth-field" htmlFor="password">
+              <span>{t('password')}</span>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                placeholder={t('passwordPlaceholder')}
+                minLength={8}
+                maxLength={72}
+                required
+              />
+            </label>
+
+            <Captcha
+              onTokenChange={setCaptchaToken}
+              onRequiredChange={setCaptchaRequired}
+            />
+
+            <button
+              type="submit"
+              disabled={submitting || (captchaRequired && !captchaToken)}
+              className="auth-submit"
+            >
+              {submitting ? t('submitting') : t('submit')}
+            </button>
+            <Link href="/auth/login" className="auth-submit auth-submit-ghost">{t('backToLogin')}</Link>
+          </form>
         </div>
-
-        <label htmlFor="emailCode">邮箱验证码</label>
-        <input
-          id="emailCode"
-          name="emailCode"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          minLength={6}
-          maxLength={6}
-          required
-        />
-
-        <label htmlFor="username">用户名</label>
-        <input
-          id="username"
-          name="username"
-          type="text"
-          autoComplete="username"
-          minLength={3}
-          maxLength={32}
-          required
-        />
-
-        <label htmlFor="nickname">昵称</label>
-        <input
-          id="nickname"
-          name="nickname"
-          type="text"
-          maxLength={64}
-        />
-
-        <label htmlFor="requestedRoleId">申请身份</label>
-        <select
-          id="requestedRoleId"
-          name="requestedRoleId"
-          defaultValue=""
-          disabled={loadingRoles}
-        >
-          <option value="">普通访客</option>
-          {roles.map(role => (
-            <option key={role.id} value={role.id}>
-              {role.name}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor="password">密码</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          minLength={8}
-          maxLength={72}
-          required
-        />
-
-        <Captcha
-          onTokenChange={setCaptchaToken}
-          onRequiredChange={setCaptchaRequired}
-        />
-
-        <button
-          type="submit"
-          disabled={submitting || (captchaRequired && !captchaToken)}
-        >
-          {submitting ? '注册中...' : '注册'}
-        </button>
-      </form>
+      </section>
     </main>
   )
 }

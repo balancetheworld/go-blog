@@ -6,6 +6,7 @@ import { ConsoleContent } from '@/components/console/console-content'
 import { SiteHeader } from '@/components/console/site-header'
 import { getCurrentUser } from '@/lib/auth/current-user'
 import { isEditor } from '@/lib/permission'
+import './console.css'
 
 interface ConsoleLayoutProps {
   children: ReactNode
@@ -24,10 +25,10 @@ export default async function ConsoleLayout({
     return <ConsoleAccessDenied />
 
   return (
-    <div className="grid min-h-screen md:grid-cols-[220px_minmax(0,1fr)]">
+    <div className="console-shell">
       <AppSidebar role={user.role} />
 
-      <div className="min-w-0">
+      <div className="console-workspace">
         <SiteHeader user={user} />
 
         <ConsoleContent>

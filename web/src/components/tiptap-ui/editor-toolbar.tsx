@@ -2,6 +2,7 @@
 
 import type { Editor } from '@tiptap/react'
 import { useEditorState } from '@tiptap/react'
+import { useTranslations } from 'next-intl'
 import { CodeControls } from '@/components/tiptap-custom/code-controls'
 import { ColorPicker } from '@/components/tiptap-custom/color-picker'
 import { ImageControls } from '@/components/tiptap-custom/image-controls'
@@ -41,6 +42,7 @@ export function EditorToolbar({
   fullscreen = false,
   onToggleFullscreen,
 }: EditorToolbarProps) {
+  const t = useTranslations('Console.editor')
   const state = useEditorState({
     editor,
     selector: ({ editor }) => editor
@@ -71,11 +73,11 @@ export function EditorToolbar({
   return (
     <div
       role="toolbar"
-      aria-label="正文格式"
+      aria-label={t('content')}
       className="flex flex-wrap items-center gap-1 border-b border-black/15 p-2 dark:border-white/15"
     >
       <EditorButton
-        label="加粗"
+        label={t('bold')}
         active={state?.bold}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -83,7 +85,7 @@ export function EditorToolbar({
         <Bold className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="斜体"
+        label={t('italic')}
         active={state?.italic}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleItalic().run()}
@@ -94,7 +96,7 @@ export function EditorToolbar({
       <span className="mx-1 h-6 w-px bg-black/10 dark:bg-white/10" />
 
       <EditorButton
-        label="一级标题"
+        label={t('heading1')}
         active={state?.heading1}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -102,7 +104,7 @@ export function EditorToolbar({
         <Heading1 className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="二级标题"
+        label={t('heading2')}
         active={state?.heading2}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
@@ -110,7 +112,7 @@ export function EditorToolbar({
         <Heading2 className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="无序列表"
+        label={t('bulletList')}
         active={state?.bulletList}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleBulletList().run()}
@@ -118,7 +120,7 @@ export function EditorToolbar({
         <List className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="有序列表"
+        label={t('orderedList')}
         active={state?.orderedList}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleOrderedList().run()}
@@ -126,7 +128,7 @@ export function EditorToolbar({
         <ListOrdered className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="引用"
+        label={t('quote')}
         active={state?.blockquote}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleBlockquote().run()}
@@ -141,7 +143,7 @@ export function EditorToolbar({
         language={state?.codeLanguage}
       />
       <EditorButton
-        label="高亮"
+        label={t('highlight')}
         active={state?.highlight}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleHighlight().run()}
@@ -149,7 +151,7 @@ export function EditorToolbar({
         <Highlighter className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="下标"
+        label={t('subscript')}
         active={state?.subscript}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleSubscript().run()}
@@ -157,7 +159,7 @@ export function EditorToolbar({
         <Subscript className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="上标"
+        label={t('superscript')}
         active={state?.superscript}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleSuperscript().run()}
@@ -168,7 +170,7 @@ export function EditorToolbar({
       <span className="mx-1 h-6 w-px bg-black/10 dark:bg-white/10" />
 
       <EditorButton
-        label="左对齐"
+        label={t('alignLeft')}
         active={state?.alignLeft}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().setTextAlign('left').run()}
@@ -176,7 +178,7 @@ export function EditorToolbar({
         <AlignLeft className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="居中"
+        label={t('alignCenter')}
         active={state?.alignCenter}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().setTextAlign('center').run()}
@@ -184,7 +186,7 @@ export function EditorToolbar({
         <AlignCenter className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="右对齐"
+        label={t('alignRight')}
         active={state?.alignRight}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().setTextAlign('right').run()}
@@ -192,7 +194,7 @@ export function EditorToolbar({
         <AlignRight className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="分隔线"
+        label={t('horizontalRule')}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().setHorizontalRule().run()}
       >
@@ -201,7 +203,7 @@ export function EditorToolbar({
       <ColorPicker editor={editor} disabled={disabled} />
       <ImageControls editor={editor} disabled={disabled} />
       <EditorButton
-        label="清除格式"
+        label={t('clearFormatting')}
         disabled={!editor || disabled || state?.selectionEmpty}
         onClick={() => editor
           ?.chain()
@@ -217,14 +219,14 @@ export function EditorToolbar({
       <span className="mx-1 h-6 w-px bg-black/10 dark:bg-white/10" />
 
       <EditorButton
-        label="撤销"
+        label={t('undo')}
         disabled={!editor || disabled || !state?.canUndo}
         onClick={() => editor?.chain().focus().undo().run()}
       >
         <Undo2 className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="重做"
+        label={t('redo')}
         disabled={!editor || disabled || !state?.canRedo}
         onClick={() => editor?.chain().focus().redo().run()}
       >
@@ -233,7 +235,7 @@ export function EditorToolbar({
 
       {onToggleFullscreen && (
         <EditorButton
-          label={fullscreen ? '退出全屏' : '全屏编辑'}
+          label={fullscreen ? t('exitFullscreen') : t('fullscreen')}
           active={fullscreen}
           disabled={!editor || disabled}
           onClick={onToggleFullscreen}

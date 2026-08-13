@@ -17,6 +17,9 @@ func main(){
 	if err := service.EnsureRootUser(context.Background()); err != nil {
 		panic(err)
 	}
+	if err := service.EnsureDemoContent(context.Background()); err != nil {
+		panic(err)
+	}
 	if err := repo.InitRedis(context.Background()); err != nil {
 		panic(err)
 	}

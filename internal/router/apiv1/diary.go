@@ -18,9 +18,6 @@ func registerDiaryRoutes(group *route.RouterGroup) {
 		middleware.UseAuth(true),
 		middleware.UseRole(constant.RoleEditor),
 	)
-	editor.POST("/folders", controller.CreateDiaryFolder)
-	editor.PUT("/folders/:id", controller.UpdateDiaryFolder)
-	editor.DELETE("/folders/:id", controller.DeleteDiaryFolder)
 	editor.POST("", controller.CreateDiary)
 	editor.PUT("/:id", controller.UpdateDiary)
 	editor.DELETE("/:id", controller.DeleteDiary)

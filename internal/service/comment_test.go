@@ -69,6 +69,23 @@ func TestCommentTargetsRepliesAndCounters(t *testing.T) {
 		t.Fatalf("unexpected top comment: %#v", top)
 	}
 
+	guestComments, err := ListComments(
+		ctx,
+		dto.CommentListRequest{
+			TargetType: constant.TargetPost,
+			TargetID:   post.ID,
+		},
+		0,
+		constant.RoleGuest,
+		0,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if guestComments.Total != 1 || len(guestComments.Items) != 1 {
+		t.Fatalf("unexpected guest comments: %#v", guestComments)
+	}
+
 	reply, err := CreateComment(
 		ctx,
 		user.ID,
@@ -223,5 +240,71 @@ func TestDiaryCommentCounter(t *testing.T) {
 	}
 	if countedDiary.CommentCount != 0 {
 		t.Fatalf("expected no diary comments, got %d", countedDiary.CommentCount)
+	}
+}
+
+func TestGuestbookComments(t *testing.T) {
+	t.Setenv(constant.EnvKeyDBDriver, "sqlite")
+	t.Setenv(
+		constant.EnvKeyDBSQLitePath,
+		filepath.Join(t.TempDir(), "guestbook-comment-service.db"),
+	)
+	if err := repo.InitDatabase(); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	memberRole, err := repo.GetRoleByCode(ctx, constant.RoleCodeMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := model.User{
+		Username:     "guestbook-user",
+		Email:        "guestbook-user@example.com",
+		PasswordHash: "password-hash",
+		Role:         constant.RoleUser,
+		RoleID:       &memberRole.ID,
+	}
+	if err := repo.CreateUser(ctx, &user); err != nil {
+		t.Fatal(err)
+	}
+
+	created, err := CreateComment(
+		ctx,
+		user.ID,
+		constant.RoleUser,
+		memberRole.ID,
+		dto.CreateCommentRequest{
+			TargetType: constant.TargetGuestbook,
+			TargetID:   1,
+			Content:    "guestbook message",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.TargetType != constant.TargetGuestbook || created.TargetID != 1 {
+		t.Fatalf("unexpected guestbook comment: %#v", created)
+	}
+
+	comments, err := ListComments(
+		ctx,
+		dto.CommentListRequest{
+			TargetType: constant.TargetGuestbook,
+			TargetID:   1,
+		},
+		0,
+		constant.RoleGuest,
+		0,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comments.Total != 1 || len(comments.Items) != 1 {
+		t.Fatalf("unexpected guestbook comments: %#v", comments)
+	}
+
+	if err := DeleteComment(ctx, uint(created.ID), user.ID, constant.RoleUser); err != nil {
+		t.Fatal(err)
 	}
 }

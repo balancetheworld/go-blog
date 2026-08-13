@@ -11,7 +11,7 @@ export default async function NewPostPage() {
     getCurrentUser(),
   ])
 
-  if (!currentUser)
+  if (!currentUser || currentUser.role !== 'admin')
     notFound()
 
   return (

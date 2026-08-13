@@ -8,6 +8,7 @@ import (
 	"github.com/zyj/my-blog/internal/model"
 	"github.com/zyj/my-blog/pkg/constant"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // PostListFilter 帖子列表查询筛选条件结构体
@@ -95,6 +96,9 @@ func DeletePost(ctx context.Context, id uint) (int64, error) {
 		).Delete(&model.Comment{}).Error; err != nil {
 			return err
 		}
+		if err := tx.Where("post_id = ?", id).Delete(&model.PostLike{}).Error; err != nil {
+			return err
+		}
 
 		result := tx.Select("Labels", "VisibleRoles").Delete(&post)
 		rowsAffected = result.RowsAffected
@@ -102,6 +106,85 @@ func DeletePost(ctx context.Context, id uint) (int64, error) {
 	})
 
 	return rowsAffected, err
+}
+
+func IsPostLiked(ctx context.Context, postID uint, userID uint) (bool, error) {
+	if db == nil {
+		return false, errors.New("database is not initialized")
+	}
+
+	var count int64
+	if err := db.WithContext(ctx).
+		Model(&model.PostLike{}).
+		Where("post_id = ? AND user_id = ?", postID, userID).
+		Count(&count).
+		Error; err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func TogglePostLike(
+	ctx context.Context,
+	postID uint,
+	userID uint,
+) (bool, uint64, error) {
+	if db == nil {
+		return false, 0, errors.New("database is not initialized")
+	}
+
+	liked := false
+	var likeCount uint64
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Where("post_id = ? AND user_id = ?", postID, userID).
+		Delete(&model.PostLike{})
+		if result.Error != nil {
+			return result.Error
+		}
+
+		delta := -1
+		if result.RowsAffected == 0 {
+			like := model.PostLike{PostID: postID, UserID: userID}
+			result = tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&like)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return errors.New("toggle post like conflict")
+			}
+			liked = true
+			delta = 1
+		}
+
+		updates := map[string]any{
+			"like_count": gorm.Expr("like_count + ?", 1),
+			"heat":       gorm.Expr("heat + ?", 3),
+		}
+		if delta < 0 {
+			updates = map[string]any{
+				"like_count": gorm.Expr("CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END"),
+				"heat":       gorm.Expr("CASE WHEN like_count > 0 AND heat >= 3 THEN heat - 3 ELSE heat END"),
+			}
+		}
+
+		result = tx.Model(&model.Post{}).
+			Where("id = ?", postID).
+			Updates(updates)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		return tx.Model(&model.Post{}).
+			Where("id = ?", postID).
+			Pluck("like_count", &likeCount).
+			Error
+	})
+
+	return liked, likeCount, err
 }
 
 func GetPostByID(ctx context.Context, id uint) (model.Post, error) {

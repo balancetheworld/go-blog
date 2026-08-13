@@ -135,3 +135,121 @@ func TestRoleManagementRepository(t *testing.T) {
 		t.Fatal("expected deleted role code to remain reserved")
 	}
 }
+
+func TestSystemRolePolicy(t *testing.T) {
+	database, err := gorm.Open(
+		sqlite.Open("file:system_role_policy_test?mode=memory&cache=shared"),
+		&gorm.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.AutoMigrate(
+		&model.Role{},
+		&model.User{},
+		&model.RoleApplication{},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	previousDB := db
+	db = database
+	t.Cleanup(func() {
+		db = previousDB
+	})
+
+	ctx := context.Background()
+	if err := EnsureSystemRoles(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureSystemRoles(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	guestRole, err := GetRoleByCode(ctx, constant.RoleCodeGuest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberRole, err := GetRoleByCode(ctx, constant.RoleCodeMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var editorRole model.Role
+	if err := database.Unscoped().
+		Where("code = ?", constant.RoleCodeEditor).
+		First(&editorRole).
+		Error; err != nil {
+		t.Fatal(err)
+	}
+	adminRole, err := GetRoleByCode(ctx, constant.RoleCodeAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if guestRole.Name != "游客" || !guestRole.IsSystem || guestRole.IsDefault {
+		t.Fatalf("unexpected guest role: %#v", guestRole)
+	}
+	if memberRole.Name != "普通访客" || !memberRole.IsSystem || !memberRole.IsDefault {
+		t.Fatalf("unexpected member role: %#v", memberRole)
+	}
+	if editorRole.IsSystem || editorRole.Enabled || editorRole.IsRequestable {
+		t.Fatalf("editor role must be retired: %#v", editorRole)
+	}
+	if adminRole.Name != "管理员" || !adminRole.IsSystem || adminRole.IsRequestable {
+		t.Fatalf("unexpected admin role: %#v", adminRole)
+	}
+
+	customRole := model.Role{
+		Code:    "friends",
+		Name:    "朋友",
+		Enabled: true,
+	}
+	if err := CreateRole(ctx, &customRole); err != nil {
+		t.Fatal(err)
+	}
+	enabledRoles, err := ListEnabledRoles(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(enabledRoles) != 2 || enabledRoles[0].ID != memberRole.ID || enabledRoles[1].ID != customRole.ID {
+		t.Fatalf("unexpected visible role options: %#v", enabledRoles)
+	}
+
+	rootUser := model.User{
+		Username:     "root-user",
+		Email:        "root-user@example.com",
+		PasswordHash: "password-hash",
+		Role:         constant.RoleAdmin,
+		RoleID:       &adminRole.ID,
+		IsRoot:       true,
+	}
+	legacyAdmin := model.User{
+		Username:     "legacy-admin",
+		Email:        "legacy-admin@example.com",
+		PasswordHash: "password-hash",
+		Role:         constant.RoleAdmin,
+		RoleID:       &adminRole.ID,
+	}
+	if err := database.Create(&rootUser).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Create(&legacyAdmin).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	if err := EnforceRootAdminRole(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.First(&rootUser, rootUser.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.First(&legacyAdmin, legacyAdmin.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if rootUser.Role != constant.RoleAdmin || rootUser.RoleID == nil || *rootUser.RoleID != adminRole.ID {
+		t.Fatalf("root role changed unexpectedly: %#v", rootUser)
+	}
+	if legacyAdmin.Role != constant.RoleUser || legacyAdmin.RoleID == nil || *legacyAdmin.RoleID != memberRole.ID {
+		t.Fatalf("legacy admin was not demoted: %#v", legacyAdmin)
+	}
+}

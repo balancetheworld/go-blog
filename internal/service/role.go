@@ -10,6 +10,7 @@ package service
         "github.com/zyj/my-blog/internal/dto"
 		"github.com/zyj/my-blog/internal/model"
         "github.com/zyj/my-blog/internal/repo"
+		"github.com/zyj/my-blog/pkg/constant"
         "github.com/zyj/my-blog/pkg/errs"
 		"gorm.io/gorm"
   )
@@ -192,7 +193,7 @@ func UpdateRole(
 			"get role failed",
 		)
 	}
-	if role.IsSystem {
+	if role.IsSystem || role.Code == constant.RoleCodeEditor {
 		return dto.RoleResponse{}, errs.NewForbidden(
 			http.StatusForbidden,
 			"system role cannot be updated",
@@ -251,7 +252,7 @@ func DeleteRole(ctx context.Context, id uint) error {
 			"get role failed",
 		)
 	}
-	if role.IsSystem {
+	if role.IsSystem || role.Code == constant.RoleCodeEditor {
 		return errs.NewForbidden(
 			http.StatusForbidden,
 			"system role cannot be deleted",

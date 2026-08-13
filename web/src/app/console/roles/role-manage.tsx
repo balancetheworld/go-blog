@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import type { ListRolesResponse, Role } from '@/models/role'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -30,6 +31,7 @@ const emptyForm: RoleFormState = {
 }
 
 export function RoleManage() {
+  const t = useTranslations('Console.roles')
   const [result, setResult] = useState<ListRolesResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -71,7 +73,7 @@ export function RoleManage() {
       }
       catch {
         if (!cancelled)
-          setLoadError('身份列表加载失败')
+          setLoadError(t('loadFailed'))
       }
       finally {
         if (!cancelled)
@@ -84,7 +86,7 @@ export function RoleManage() {
     return () => {
       cancelled = true
     }
-  }, [appliedKeyword, page, reloadKey])
+  }, [appliedKeyword, page, reloadKey, t])
 
   function openCreate() {
     setEditingRole(null)
@@ -116,11 +118,11 @@ export function RoleManage() {
     const code = form.code.trim().toLowerCase()
     const name = form.name.trim()
     if (!editingRole && !/^[a-z][a-z0-9_-]*$/.test(code)) {
-      toast.error('身份编码需以小写字母开头，只能包含小写字母、数字、下划线和连字符')
+      toast.error(t('codeInvalid'))
       return
     }
     if (!name) {
-      toast.error('请输入身份名称')
+      toast.error(t('nameRequired'))
       return
     }
 
@@ -134,7 +136,7 @@ export function RoleManage() {
           isRequestable: form.isRequestable,
           enabled: form.enabled,
         })
-        toast.success('身份已更新')
+        toast.success(t('updated'))
       }
       else {
         await createRole({
@@ -144,14 +146,14 @@ export function RoleManage() {
           isRequestable: form.isRequestable,
           enabled: form.enabled,
         })
-        toast.success('身份已创建')
+        toast.success(t('created'))
       }
 
       setEditorOpen(false)
       setReloadKey(value => value + 1)
     }
     catch {
-      toast.error(editingRole ? '更新身份失败' : '创建身份失败')
+      toast.error(editingRole ? t('updateFailed') : t('createFailed'))
     }
     finally {
       setSaving(false)
@@ -166,12 +168,12 @@ export function RoleManage() {
 
     try {
       await deleteRole(pendingDelete.id)
-      toast.success('身份已删除')
+      toast.success(t('deleted'))
       setPendingDelete(null)
       setReloadKey(value => value + 1)
     }
     catch {
-      toast.error('删除身份失败，该身份可能正在使用中')
+      toast.error(t('deleteFailed'))
     }
     finally {
       setDeleting(false)
@@ -188,12 +190,12 @@ export function RoleManage() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 id="roles-title" className="text-2xl font-semibold">
-            身份管理
+            {t('title')}
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
             {loading
-              ? '加载中...'
-              : loadError || `共 ${result?.total ?? 0} 个身份`}
+              ? t('loading')
+              : loadError || t('count', { count: result?.total ?? 0 })}
           </p>
         </div>
         <button
@@ -202,22 +204,22 @@ export function RoleManage() {
           className="inline-flex min-h-10 items-center gap-2 rounded-md bg-black px-4 text-sm text-white dark:bg-white dark:text-black"
         >
           <Plus className="size-4" aria-hidden="true" />
-          新建身份
+          {t('new')}
         </button>
       </header>
 
       <form onSubmit={handleSearch} className="flex max-w-lg gap-2">
         <input
-          aria-label="搜索身份"
+          aria-label={t('search')}
           value={keyword}
           onChange={event => setKeyword(event.target.value)}
-          placeholder="搜索身份名称或编码"
+          placeholder={t('searchPlaceholder')}
           className="min-h-10 min-w-0 flex-1 rounded-md border border-black/15 px-3 dark:border-white/15"
         />
         <button
           type="submit"
-          aria-label="搜索"
-          title="搜索"
+          aria-label={t('searchAction')}
+          title={t('searchAction')}
           className="inline-flex size-10 items-center justify-center rounded-md border border-black/15 dark:border-white/15"
         >
           <Search className="size-4" aria-hidden="true" />
@@ -228,12 +230,12 @@ export function RoleManage() {
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="text-neutral-500">
             <tr>
-              <th className="px-3 py-3">名称</th>
-              <th className="px-3 py-3">编码</th>
-              <th className="px-3 py-3">类型</th>
-              <th className="px-3 py-3">开放申请</th>
-              <th className="px-3 py-3">状态</th>
-              <th className="px-3 py-3">操作</th>
+              <th className="px-3 py-3">{t('name')}</th>
+              <th className="px-3 py-3">{t('code')}</th>
+              <th className="px-3 py-3">{t('type')}</th>
+              <th className="px-3 py-3">{t('requestable')}</th>
+              <th className="px-3 py-3">{t('status')}</th>
+              <th className="px-3 py-3">{t('actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -249,18 +251,18 @@ export function RoleManage() {
                 </td>
                 <td className="px-3 py-4">{role.code}</td>
                 <td className="px-3 py-4">
-                  {role.isSystem ? '系统身份' : '自定义身份'}
-                  {role.isDefault && ' / 默认'}
+                  {role.isSystem ? t('system') : t('custom')}
+                  {role.isDefault && ` / ${t('default')}`}
                 </td>
-                <td className="px-3 py-4">{role.isRequestable ? '是' : '否'}</td>
-                <td className="px-3 py-4">{role.enabled ? '启用' : '停用'}</td>
+                <td className="px-3 py-4">{role.isRequestable ? t('yes') : t('no')}</td>
+                <td className="px-3 py-4">{role.enabled ? t('enabled') : t('disabled')}</td>
                 <td className="px-3 py-4">
                   {!role.isSystem && (
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        aria-label={`编辑${role.name}`}
-                        title="编辑身份"
+                        aria-label={t('editAction', { name: role.name })}
+                        title={t('editTitle')}
                         className="inline-flex size-9 items-center justify-center"
                         onClick={() => openEdit(role)}
                       >
@@ -268,8 +270,8 @@ export function RoleManage() {
                       </button>
                       <button
                         type="button"
-                        aria-label={`删除${role.name}`}
-                        title="删除身份"
+                        aria-label={t('deleteAction', { name: role.name })}
+                        title={t('deleteTitle')}
                         className="inline-flex size-9 items-center justify-center text-red-600"
                         onClick={() => setPendingDelete(role)}
                       >
@@ -283,7 +285,7 @@ export function RoleManage() {
             {!loading && result?.items.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-12 text-center text-neutral-500">
-                  暂无身份
+                  {t('empty')}
                 </td>
               </tr>
             )}
@@ -292,7 +294,7 @@ export function RoleManage() {
       </div>
 
       <nav
-        aria-label="身份分页"
+        aria-label={t('pagination')}
         className="flex items-center justify-end gap-4 text-sm"
       >
         <button
@@ -301,7 +303,7 @@ export function RoleManage() {
           onClick={() => setPage(value => value - 1)}
           className="disabled:text-neutral-400"
         >
-          上一页
+          {t('previous')}
         </button>
         <span>
           {page}
@@ -316,7 +318,7 @@ export function RoleManage() {
           onClick={() => setPage(value => value + 1)}
           className="disabled:text-neutral-400"
         >
-          下一页
+          {t('next')}
         </button>
       </nav>
 
@@ -331,14 +333,14 @@ export function RoleManage() {
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/45" />
           <Dialog.Content className="fixed top-1/2 left-1/2 z-50 max-h-[90vh] w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md bg-white p-6 shadow-xl dark:bg-neutral-950">
             <Dialog.Title className="text-lg font-semibold">
-              {editingRole ? '编辑身份' : '新建身份'}
+              {editingRole ? t('editTitle') : t('new')}
             </Dialog.Title>
             <Dialog.Description className="mt-2 text-sm text-neutral-500">
-              {editingRole ? '修改身份名称、描述和使用状态' : '创建可供用户申请的新身份'}
+              {editingRole ? t('editDescription') : t('createDescription')}
             </Dialog.Description>
             <form onSubmit={handleSave} className="mt-6 space-y-4">
               <label className="block text-sm">
-                <span>身份编码</span>
+                <span>{t('roleCode')}</span>
                 <input
                   value={form.code}
                   disabled={editingRole !== null}
@@ -349,7 +351,7 @@ export function RoleManage() {
                 />
               </label>
               <label className="block text-sm">
-                <span>身份名称</span>
+                <span>{t('roleName')}</span>
                 <input
                   value={form.name}
                   required
@@ -359,7 +361,7 @@ export function RoleManage() {
                 />
               </label>
               <label className="block text-sm">
-                <span>身份描述</span>
+                <span>{t('roleDescription')}</span>
                 <textarea
                   value={form.description}
                   maxLength={512}
@@ -374,7 +376,7 @@ export function RoleManage() {
                   checked={form.isRequestable}
                   onChange={event => setForm(value => ({ ...value, isRequestable: event.target.checked }))}
                 />
-                允许用户申请
+                {t('allowRequest')}
               </label>
               <label className="flex items-center gap-3 text-sm">
                 <input
@@ -382,7 +384,7 @@ export function RoleManage() {
                   checked={form.enabled}
                   onChange={event => setForm(value => ({ ...value, enabled: event.target.checked }))}
                 />
-                启用身份
+                {t('enableRole')}
               </label>
               <div className="flex justify-end gap-3 pt-2">
                 <Dialog.Close asChild>
@@ -391,7 +393,7 @@ export function RoleManage() {
                     disabled={saving}
                     className="min-h-10 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
                   >
-                    取消
+                    {t('cancel')}
                   </button>
                 </Dialog.Close>
                 <button
@@ -399,7 +401,7 @@ export function RoleManage() {
                   disabled={saving}
                   className="min-h-10 rounded-md bg-black px-4 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
                 >
-                  {saving ? '保存中' : '保存'}
+                  {saving ? t('saving') : t('save')}
                 </button>
               </div>
             </form>
@@ -418,12 +420,10 @@ export function RoleManage() {
           <Dialog.Overlay className="fixed inset-0 z-40 bg-black/45" />
           <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-xl dark:bg-neutral-950">
             <Dialog.Title className="text-lg font-semibold">
-              删除身份
+              {t('deleteTitle')}
             </Dialog.Title>
             <Dialog.Description className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
-              确定删除身份“
-              {pendingDelete?.name}
-              ”吗？已被用户或申请记录使用的身份无法删除。
+              {t('deleteDescription', { name: pendingDelete?.name ?? '' })}
             </Dialog.Description>
             <div className="mt-6 flex justify-end gap-3">
               <Dialog.Close asChild>
@@ -432,7 +432,7 @@ export function RoleManage() {
                   disabled={deleting}
                   className="min-h-10 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
                 >
-                  取消
+                  {t('cancel')}
                 </button>
               </Dialog.Close>
               <button
@@ -441,7 +441,7 @@ export function RoleManage() {
                 onClick={() => void handleDelete()}
                 className="min-h-10 rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50"
               >
-                {deleting ? '删除中' : '删除'}
+                {deleting ? t('deleting') : t('delete')}
               </button>
             </div>
           </Dialog.Content>

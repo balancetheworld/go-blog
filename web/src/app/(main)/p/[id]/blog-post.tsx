@@ -1,122 +1,172 @@
+'use client'
+
+import type { ReactNode } from 'react'
 import type { Post } from '@/models/post'
-import {
-  Eye,
-  Heart,
-  LockKeyhole,
-  MessageCircle,
-  Pin,
-  Users,
-} from 'lucide-react'
-import Image from 'next/image'
+import { Heart } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { togglePostLike } from '@/api/post'
+import { ArticleLikeRive } from '@/components/design/article-like-rive'
+import { useAuth } from '@/contexts/auth-context'
 import { sanitizePostHTML } from '@/lib/post-html'
 
 interface BlogPostProps {
   post: Post
+  children?: ReactNode
 }
 
-const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
-  dateStyle: 'long',
-})
-
-export function BlogPost({ post }: BlogPostProps) {
+export function BlogPost({ post, children }: BlogPostProps) {
+  const locale = useLocale()
+  const t = useTranslations('Post')
+  const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'long' })
+  const router = useRouter()
+  const { currentUser } = useAuth()
+  const [liked, setLiked] = useState(post.liked)
+  const [likeCount, setLikeCount] = useState(post.likeCount)
+  const [liking, setLiking] = useState(false)
+  const [likeAnimationKey, setLikeAnimationKey] = useState(0)
+  const [likeAnimating, setLikeAnimating] = useState(false)
+  const likeAnimationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const likeRequestRef = useRef(false)
   const authorName
     = post.author.nickname || post.author.username
   const content = sanitizePostHTML(post.content)
 
+  useEffect(() => {
+    return () => {
+      if (likeAnimationTimerRef.current)
+        clearTimeout(likeAnimationTimerRef.current)
+    }
+  }, [])
+
+  async function handleLike() {
+    if (!currentUser) {
+      router.push('/auth/login')
+      return
+    }
+    if (likeRequestRef.current)
+      return
+
+    likeRequestRef.current = true
+    setLiking(true)
+    if (liked) {
+      setLikeAnimating(false)
+      if (likeAnimationTimerRef.current) {
+        clearTimeout(likeAnimationTimerRef.current)
+        likeAnimationTimerRef.current = null
+      }
+    }
+    try {
+      const result = await togglePostLike(post.id)
+      setLiked(result.liked)
+      setLikeCount(result.likeCount)
+      if (result.liked) {
+        setLikeAnimationKey(value => value + 1)
+        setLikeAnimating(true)
+        if (likeAnimationTimerRef.current)
+          clearTimeout(likeAnimationTimerRef.current)
+        likeAnimationTimerRef.current = setTimeout(setLikeAnimating, 1400, false)
+      }
+    }
+    catch {
+      toast.error(t('likeFailed'))
+    }
+    finally {
+      likeRequestRef.current = false
+      setLiking(false)
+    }
+  }
+
+  function handleBack() {
+    const value = window.sessionStorage.getItem('article-list-return')
+    if (value) {
+      try {
+        const saved = JSON.parse(value) as {
+          href?: string
+          scrollY?: number
+          targetPath?: string
+          savedAt?: number
+        }
+        const valid = saved.targetPath === window.location.pathname
+          && typeof saved.scrollY === 'number'
+          && typeof saved.savedAt === 'number'
+          && Date.now() - saved.savedAt < 60 * 60 * 1000
+
+        if (valid) {
+          window.sessionStorage.setItem('article-list-restore-scroll', String(saved.scrollY))
+          window.sessionStorage.removeItem('article-list-return')
+          router.back()
+          return
+        }
+      }
+      catch {
+        window.sessionStorage.removeItem('article-list-return')
+      }
+    }
+
+    router.push('/#articles')
+  }
+
   return (
-    <article className="mx-auto w-full max-w-3xl">
-      <header className="border-b border-black/10 pb-8 dark:border-white/10">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-neutral-500">
-          {post.category && (
-            <span>{post.category.name}</span>
-          )}
+    <article className="article-detail-shell">
+      <button type="button" className="article-back-link" onClick={handleBack}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M19 12H5" />
+          <polyline points="12 19 5 12 12 5" />
+        </svg>
+        {t('back')}
+      </button>
 
-          {post.top && (
-            <span className="inline-flex items-center gap-1">
-              <Pin className="size-4" aria-hidden="true" />
-              置顶
-            </span>
-          )}
-
-          {post.visibility === 'private' && (
-            <span className="inline-flex items-center gap-1">
-              <LockKeyhole className="size-4" aria-hidden="true" />
-              私密
-            </span>
-          )}
-
-          {post.visibility === 'roles' && (
-            <span className="inline-flex items-center gap-1">
-              <Users className="size-4" aria-hidden="true" />
-              {post.visibleRoles.map(role => role.name).join('、')}
-            </span>
-          )}
-        </div>
-
-        <h1 className="mt-4 text-3xl font-semibold leading-tight">
-          {post.title}
-        </h1>
-
-        {post.description && (
-          <p className="mt-4 leading-7 text-neutral-600 dark:text-neutral-400">
-            {post.description}
-          </p>
-        )}
-
-        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-sm text-neutral-500">
-          <span>{authorName}</span>
-
-          <time dateTime={post.publishedAt ?? post.createdAt}>
-            {dateFormatter.format(new Date(post.publishedAt ?? post.createdAt))}
-          </time>
-
-          <span className="inline-flex items-center gap-1">
-            <Eye className="size-4" aria-hidden="true" />
-            {post.viewCount}
-          </span>
-
-          <span className="inline-flex items-center gap-1">
-            <Heart className="size-4" aria-hidden="true" />
-            {post.likeCount}
-          </span>
-
-          <span className="inline-flex items-center gap-1">
-            <MessageCircle className="size-4" aria-hidden="true" />
-            {post.commentCount}
-          </span>
-        </div>
-
-        {post.cover && (
-          <div className="relative mt-8 aspect-video overflow-hidden rounded-md">
-            <Image
-              src={post.cover}
-              alt={post.title}
-              fill
-              priority
-              sizes="(max-width: 768px) 100vw, 768px"
-              className="object-cover"
-            />
+      <div className="article-detail-content">
+        <header className="article-detail-hero">
+          <div className="article-detail-copy">
+            <h1>{post.title}</h1>
+            <div className="article-detail-meta">
+              <span>{authorName}</span>
+              <time dateTime={post.publishedAt ?? post.createdAt}>
+                {dateFormatter.format(new Date(post.publishedAt ?? post.createdAt))}
+              </time>
+            </div>
           </div>
-        )}
-      </header>
+        </header>
 
-      <div
-        className="break-words py-8 leading-8 [&_a]:underline [&_blockquote]:my-6 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_code]:rounded-sm [&_code]:bg-black/5 [&_code]:px-1 [&_h1]:mt-10 [&_h1]:text-3xl [&_h2]:mt-9 [&_h2]:text-2xl [&_h3]:mt-8 [&_h3]:text-xl [&_hr]:my-8 [&_img]:my-8 [&_img]:max-w-full [&_img]:rounded-md [&_img[data-align=center]]:mx-auto [&_img[data-align=left]]:mr-auto [&_img[data-align=right]]:ml-auto [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-5 [&_pre]:my-6 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-neutral-900 [&_pre]:p-4 [&_pre]:text-neutral-100 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-6 dark:[&_code]:bg-white/10"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
+        <div
+          className="article-prose"
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      </div>
 
-      {post.labels.length > 0 && (
-        <footer className="flex flex-wrap gap-2 border-t border-black/10 pt-6 dark:border-white/10">
+      <footer className="article-detail-footer">
+        <div className="article-detail-actions">
+          <div className="article-detail-stat">
+            <span>{t('views')}</span>
+            <strong>{post.viewCount}</strong>
+          </div>
+          <button
+            type="button"
+            className={`article-like-btn${liked ? ' is-liked' : ''}${likeAnimating ? ' is-popping' : ''}`}
+            aria-pressed={liked}
+            aria-disabled={liking}
+            aria-label={liked ? t('unlikeAction') : t('likeAction')}
+            onClick={() => void handleLike()}
+          >
+            <Heart size={17} fill={liked ? 'currentColor' : 'none'} aria-hidden="true" />
+            <span>{t('like')}</span>
+            <strong>{likeCount}</strong>
+            <ArticleLikeRive playKey={likeAnimationKey} />
+          </button>
+          <div className="article-detail-stat">
+            <span>{t('comments')}</span>
+            <strong>{post.commentCount}</strong>
+          </div>
           {post.labels.map(label => (
-            <span
-              key={label.id}
-              className="rounded-sm border border-black/10 px-2 py-1 text-sm dark:border-white/10"
-            >
-              {label.name}
-            </span>
+            <div key={label.id} className="article-detail-stat"><span>{label.name}</span></div>
           ))}
-        </footer>
-      )}
+        </div>
+        {children}
+      </footer>
     </article>
   )
 }

@@ -6,6 +6,7 @@ import type {
 } from '@/models/role'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Check, X } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -15,6 +16,8 @@ import {
 } from '@/api/role'
 
 export function RoleApplicationManage() {
+  const locale = useLocale()
+  const t = useTranslations('Console.roles')
   const [result, setResult] = useState<ListRoleApplicationsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -53,7 +56,7 @@ export function RoleApplicationManage() {
       }
       catch {
         if (!cancelled)
-          setLoadError('身份申请加载失败')
+          setLoadError(t('applicationsLoadFailed'))
       }
       finally {
         if (!cancelled)
@@ -64,18 +67,18 @@ export function RoleApplicationManage() {
     return () => {
       cancelled = true
     }
-  }, [page, status, reloadKey])
+  }, [page, reloadKey, status, t])
 
   async function handleApprove(id: number) {
     setApprovingId(id)
 
     try {
       await approveRoleApplication(id)
-      toast.success('身份申请已通过')
+      toast.success(t('approvedMessage'))
       setReloadKey(value => value + 1)
     }
     catch {
-      toast.error('审核身份申请失败')
+      toast.error(t('approveFailed'))
     }
     finally {
       setApprovingId(null)
@@ -87,19 +90,19 @@ export function RoleApplicationManage() {
       return
     const reason = rejectReason.trim()
     if (!reason) {
-      toast.error('请填写拒绝原因')
+      toast.error(t('reasonRequired'))
       return
     }
     setRejectingId(pendingReject.id)
     try {
       await rejectRoleApplication(pendingReject.id, reason)
-      toast.success('身份申请已拒绝')
+      toast.success(t('rejectedMessage'))
       setPendingReject(null)
       setRejectReason('')
       setReloadKey(value => value + 1)
     }
     catch {
-      toast.error('拒绝身份申请失败')
+      toast.error(t('rejectFailed'))
     }
     finally {
       setRejectingId(null)
@@ -128,34 +131,34 @@ export function RoleApplicationManage() {
           id="role-applications-title"
           className="text-2xl font-semibold"
         >
-          身份审核
+          {t('applicationsTitle')}
         </h1>
         <p className="mt-2 text-sm text-neutral-500">
           {loading
-            ? '加载中...'
-            : loadError || `共 ${result?.total ?? 0} 条申请`}
+            ? t('loading')
+            : loadError || t('applicationsCount', { count: result?.total ?? 0 })}
         </p>
         <select
-          aria-label="申请状态"
+          aria-label={t('applicationStatus')}
           value={status}
           onChange={(event) => {
             setStatus(event.target.value as RoleApplicationStatus)
             setPage(1)
           }}
         >
-          <option value="pending">待审核</option>
-          <option value="approved">已通过</option>
-          <option value="rejected">已拒绝</option>
+          <option value="pending">{t('pending')}</option>
+          <option value="approved">{t('approved')}</option>
+          <option value="rejected">{t('rejected')}</option>
         </select>
         <div className="mt-6 overflow-x-auto border-y border-black/10 dark:border-white/10">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="text-neutral-500">
               <tr>
-                <th>用户</th>
-                <th>申请身份</th>
-                <th>状态</th>
-                <th>申请时间</th>
-                <th className="px-3 py-3">操作</th>
+                <th>{t('user')}</th>
+                <th>{t('requestedRole')}</th>
+                <th>{t('status')}</th>
+                <th>{t('applicationTime')}</th>
+                <th className="px-3 py-3">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -171,18 +174,18 @@ export function RoleApplicationManage() {
                     {application.requestedRole.name}
                   </td>
                   <td className="px-3 py-4">
-                    {application.status}
+                    {t(application.status)}
                   </td>
                   <td className="px-3 py-4">
-                    {new Date(application.createdAt).toLocaleString('zh-CN')}
+                    {new Date(application.createdAt).toLocaleString(locale)}
                   </td>
                   <td className="px-3 py-4">
                     {application.status === 'pending' && (
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          aria-label="通过申请"
-                          title="通过申请"
+                          aria-label={t('approveAction')}
+                          title={t('approveAction')}
                           disabled={approvingId !== null || rejectingId !== null}
                           className="inline-flex size-9 items-center justify-center rounded-md disabled:opacity-50"
                           onClick={() => void handleApprove(application.id)}
@@ -191,8 +194,8 @@ export function RoleApplicationManage() {
                         </button>
                         <button
                           type="button"
-                          aria-label="拒绝申请"
-                          title="拒绝申请"
+                          aria-label={t('rejectAction')}
+                          title={t('rejectAction')}
                           disabled={approvingId !== null || rejectingId !== null}
                           className="inline-flex size-9 items-center justify-center rounded-md text-red-600 disabled:opacity-50"
                           onClick={() => {
@@ -213,7 +216,7 @@ export function RoleApplicationManage() {
                     colSpan={5}
                     className="px-3 py-12 text-center text-neutral-500"
                   >
-                    暂无身份申请
+                    {t('applicationsEmpty')}
                   </td>
                 </tr>
               )}
@@ -221,7 +224,7 @@ export function RoleApplicationManage() {
           </table>
         </div>
         <nav
-          aria-label="身份申请分页"
+          aria-label={t('applicationsPagination')}
           className="mt-5 flex items-center justify-end gap-4 text-sm"
         >
           <button
@@ -230,7 +233,7 @@ export function RoleApplicationManage() {
             onClick={() => setPage(value => value - 1)}
             className="disabled:text-neutral-400"
           >
-            上一页
+            {t('previous')}
           </button>
           <span>
             {page}
@@ -245,7 +248,7 @@ export function RoleApplicationManage() {
             onClick={() => setPage(value => value + 1)}
             className="disabled:text-neutral-400"
           >
-            下一页
+            {t('next')}
           </button>
         </nav>
       </section>
@@ -254,19 +257,18 @@ export function RoleApplicationManage() {
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/45" />
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-xl dark:bg-neutral-950">
           <Dialog.Title className="text-lg font-semibold">
-            拒绝身份申请
+            {t('rejectTitle')}
           </Dialog.Title>
           <Dialog.Description className="mt-2 text-sm leading-6 text-neutral-600 dark:text-neutral-400">
-            拒绝
-            {pendingReject?.user.nickname || pendingReject?.user.username}
-            申请的
-            {pendingReject?.requestedRole.name}
-            身份
+            {t('rejectDescription', {
+              user: pendingReject?.user.nickname || pendingReject?.user.username || '',
+              role: pendingReject?.requestedRole.name || '',
+            })}
           </Dialog.Description>
           <textarea
             value={rejectReason}
             onChange={event => setRejectReason(event.target.value)}
-            placeholder="请输入拒绝原因"
+            placeholder={t('reasonPlaceholder')}
             rows={4}
             className="mt-4 w-full resize-none rounded-md border border-black/15 p-3 text-sm dark:border-white/15"
           />
@@ -277,7 +279,7 @@ export function RoleApplicationManage() {
                 disabled={rejectingId !== null}
                 className="min-h-10 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
               >
-                取消
+                {t('cancel')}
               </button>
             </Dialog.Close>
             <button
@@ -286,7 +288,7 @@ export function RoleApplicationManage() {
               onClick={() => void handleReject()}
               className="min-h-10 rounded-md bg-red-600 px-4 text-sm text-white disabled:opacity-50"
             >
-              {rejectingId === null ? '确认拒绝' : '提交中'}
+              {rejectingId === null ? t('confirmReject') : t('submitting')}
             </button>
           </div>
         </Dialog.Content>

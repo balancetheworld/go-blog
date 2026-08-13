@@ -19,6 +19,7 @@ type CommentListFilter struct {
 	TopLevelOnly bool
 	Offset       int
 	Limit        int
+	NewestFirst  bool
 }
 
 func CreateComment(ctx context.Context, comment *model.Comment) error {
@@ -93,10 +94,14 @@ func ListComments(
 	}
 
 	var comments []model.Comment
+	order := "created_at ASC, id ASC"
+	if filter.NewestFirst {
+		order = "created_at DESC, id DESC"
+	}
 	err := query.
 		Preload("Author").
 		Preload("ReplyToUser").
-		Order("created_at ASC, id ASC").
+		Order(order).
 		Offset(filter.Offset).
 		Limit(filter.Limit).
 		Find(&comments).
@@ -185,6 +190,10 @@ func updateTargetCommentCount(
 	targetID uint,
 	delta int64,
 ) error {
+	if targetType == constant.TargetGuestbook {
+		return nil
+	}
+
 	var target any
 	switch targetType {
 	case constant.TargetPost, constant.TargetPage:

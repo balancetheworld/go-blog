@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { listPosts } from '@/api/post.server'
@@ -21,10 +22,11 @@ function createPageHref(page: number, keyword: string) {
 }
 
 export default async function ConsolePostDraftsPage({ searchParams }: ConsolePostDraftsPageProps) {
+  const t = await getTranslations('Console.posts')
   const currentUser = await getCurrentUser()
   if (!currentUser)
     redirect('/auth/login?next=/console/posts/drafts')
-  if (currentUser.role !== 'admin' && currentUser.role !== 'editor')
+  if (currentUser.role !== 'admin')
     notFound()
 
   const params = await searchParams
@@ -46,14 +48,14 @@ export default async function ConsolePostDraftsPage({ searchParams }: ConsolePos
         key={keyword}
         result={result}
         initialKeyword={keyword}
-        title="草稿箱"
+        title={t('drafts')}
         basePath="/console/posts/drafts"
       />
 
-      <nav aria-label="草稿分页" className="flex items-center justify-end gap-4 text-sm">
+      <nav aria-label={t('draftPagination')} className="flex items-center justify-end gap-4 text-sm">
         {page > 1
-          ? <Link href={createPageHref(page - 1, keyword)}>上一页</Link>
-          : <span className="text-neutral-400">上一页</span>}
+          ? <Link href={createPageHref(page - 1, keyword)}>{t('previous')}</Link>
+          : <span className="text-neutral-400">{t('previous')}</span>}
 
         <span>
           {result.page}
@@ -62,8 +64,8 @@ export default async function ConsolePostDraftsPage({ searchParams }: ConsolePos
         </span>
 
         {page < totalPages
-          ? <Link href={createPageHref(page + 1, keyword)}>下一页</Link>
-          : <span className="text-neutral-400">下一页</span>}
+          ? <Link href={createPageHref(page + 1, keyword)}>{t('next')}</Link>
+          : <span className="text-neutral-400">{t('next')}</span>}
       </nav>
     </section>
   )

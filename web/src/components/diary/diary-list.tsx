@@ -1,4 +1,5 @@
 import type { Diary } from '@/models/diary'
+import { useTranslations } from 'next-intl'
 import { DiaryCard } from './diary-card'
 
 interface DiaryListProps {
@@ -6,16 +7,18 @@ interface DiaryListProps {
 }
 
 export function DiaryList({ diaries }: DiaryListProps) {
+  const t = useTranslations('Diary')
+
   if (diaries.length === 0) {
     return (
-      <p className="border-y border-black/10 py-12 text-center text-neutral-500 dark:border-white/10">
-        暂无日记
+      <p className="article-empty visible">
+        {t('empty')}
       </p>
     )
   }
 
   return (
-    <div className="border-t border-black/10 dark:border-white/10">
+    <div className="diary-grid">
       {diaries.map(diary => (
         <DiaryCard key={diary.id} diary={diary} />
       ))}

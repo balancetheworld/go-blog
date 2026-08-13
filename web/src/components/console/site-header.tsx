@@ -1,8 +1,12 @@
 'use client'
 
 import type { User } from '@/models/user'
+import { ArrowUpRight } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { getConsolePageTitle } from './data'
+import { LanguageToggle } from '@/components/i18n/language-toggle'
+import { getConsolePageTitleKey } from './data'
 import { NavUser } from './nav-user'
 import { ThemeToggle } from './theme-toggle'
 
@@ -13,12 +17,22 @@ interface SiteHeaderProps {
 export function SiteHeader({
   user,
 }: SiteHeaderProps) {
+  const t = useTranslations('Console')
+  const navigationT = useTranslations('Console.navigation')
   const pathname = usePathname()
 
   return (
-    <header className="flex min-h-16 items-center justify-between gap-4 border-b border-black/10 px-4 sm:px-6 dark:border-white/10">
-      <span className="font-medium">{getConsolePageTitle(pathname)}</span>
-      <div className="flex items-center gap-2">
+    <header className="console-header">
+      <div className="console-header-copy">
+        <span>{t('workspace')}</span>
+        <strong>{navigationT(getConsolePageTitleKey(pathname))}</strong>
+      </div>
+      <div className="console-header-actions">
+        <Link href="/" className="console-site-link">
+          <span>{t('backToSite')}</span>
+          <ArrowUpRight aria-hidden="true" />
+        </Link>
+        <LanguageToggle className="console-icon-button" />
         <ThemeToggle />
         <NavUser user={user} />
       </div>

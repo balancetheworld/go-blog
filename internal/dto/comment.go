@@ -8,7 +8,7 @@ import (
 
 type CreateCommentRequest struct {
 	PostID     uint                `json:"post_id"`
-	TargetType constant.TargetType `json:"target_type" vd:"$ == '' || in($, 'post', 'page', 'comment', 'diary')"`
+	TargetType constant.TargetType `json:"target_type" vd:"$ == '' || in($, 'post', 'page', 'comment', 'diary', 'guestbook')"`
 	TargetID   uint                `json:"target_id"`
 	ParentID   *uint               `json:"parent_id"`
 	Content    string              `json:"content" vd:"len($) >= 1 && len($) <= 2000"`
@@ -16,14 +16,14 @@ type CreateCommentRequest struct {
 
 type CommentListRequest struct {
 	PostID     uint                `query:"post_id"`
-	TargetType constant.TargetType `query:"target_type" vd:"$ == '' || in($, 'post', 'page', 'diary')"`
+	TargetType constant.TargetType `query:"target_type" vd:"$ == '' || in($, 'post', 'page', 'diary', 'guestbook')"`
 	TargetID   uint                `query:"target_id"`
 	Page       int                 `query:"page" vd:"$ == 0 || $ >= 1"`
 	PageSize   int                 `query:"page_size" vd:"$ == 0 || ($ >= 1 && $ <= 100)"`
 }
 
 type AdminCommentListRequest struct {
-	TargetType constant.TargetType `query:"target_type" vd:"$ == '' || in($, 'post', 'page', 'diary')"`
+	TargetType constant.TargetType `query:"target_type" vd:"$ == '' || in($, 'post', 'page', 'diary', 'guestbook')"`
 	TargetID   uint                `query:"target_id"`
 	AuthorID   uint                `query:"author_id"`
 	Keyword    string              `query:"keyword" vd:"len($) <= 100"`

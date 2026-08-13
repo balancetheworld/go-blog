@@ -64,6 +64,7 @@ func ListComments(
 		TopLevelOnly: true,
 		Offset:       (req.Page - 1) * req.PageSize,
 		Limit:        req.PageSize,
+		NewestFirst:  targetType == constant.TargetGuestbook,
 	})
 	if err != nil {
 		return dto.CommentListResponse{}, errs.NewInternalServer(
@@ -378,6 +379,12 @@ func getCommentTarget(
 	viewerRoleID uint,
 ) (commentTarget, error) {
 	switch targetType {
+	case constant.TargetGuestbook:
+		if targetID != 1 {
+			return commentTarget{}, errs.NewNotFound(http.StatusNotFound, "comment target not found")
+		}
+
+		return commentTarget{targetType: targetType, targetID: targetID}, nil
 	case constant.TargetPost, constant.TargetPage:
 		post, err := repo.GetPostByID(ctx, targetID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {

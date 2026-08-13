@@ -1,8 +1,10 @@
+import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/current-user'
 
 export default async function StoragesPage() {
   const user = await getCurrentUser()
+  const t = await getTranslations('Console.placeholders')
 
   if (!user || user.role !== 'admin')
     notFound()
@@ -11,15 +13,15 @@ export default async function StoragesPage() {
     <section aria-labelledby="storages-title" className="space-y-6">
       <header>
         <h1 id="storages-title" className="text-2xl font-semibold">
-          存储管理
+          {t('storagesTitle')}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          存储接口完成后，这里将展示存储配置和连接状态。
+          {t('storagesDescription')}
         </p>
       </header>
 
       <div className="border-y border-black/10 py-12 text-center text-sm text-neutral-500 dark:border-white/10">
-        暂无存储配置
+        {t('storagesEmpty')}
       </div>
     </section>
   )

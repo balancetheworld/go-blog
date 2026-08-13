@@ -8,6 +8,7 @@ import type {
 import type { RoleOption } from '@/models/role'
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { SimpleEditor } from '@/components/tiptap-editor/simple-editor'
 
@@ -31,6 +32,8 @@ export function PostPreviewDialog({
   preview,
   onClose,
 }: PostPreviewDialogProps) {
+  const t = useTranslations('Console.posts')
+
   return (
     <Dialog.Root
       open={preview !== null}
@@ -43,12 +46,12 @@ export function PostPreviewDialog({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/45" />
         <Dialog.Content className="fixed inset-x-4 top-4 bottom-4 z-50 overflow-y-auto rounded-md bg-white shadow-xl sm:inset-x-8 lg:inset-x-[max(2rem,calc((100vw-960px)/2))] dark:bg-neutral-950">
           <div className="sticky top-0 z-10 flex min-h-14 items-center justify-between border-b border-black/10 bg-white px-5 dark:border-white/10 dark:bg-neutral-950">
-            <Dialog.Title className="font-medium">文章预览</Dialog.Title>
+            <Dialog.Title className="font-medium">{t('previewTitle')}</Dialog.Title>
             <Dialog.Close asChild>
               <button
                 type="button"
-                aria-label="关闭预览"
-                title="关闭预览"
+                aria-label={t('closePreview')}
+                title={t('closePreview')}
                 className="inline-flex size-9 items-center justify-center"
               >
                 <X className="size-4" aria-hidden="true" />
@@ -61,9 +64,9 @@ export function PostPreviewDialog({
               <header className="border-b border-black/10 pb-8 dark:border-white/10">
                 <div className="flex flex-wrap items-center gap-3 text-sm text-neutral-500">
                   {preview.category && <span>{preview.category.name}</span>}
-                  {preview.visibility === 'private' && <span>仅作者和管理员</span>}
+                  {preview.visibility === 'private' && <span>{t('private')}</span>}
                   {preview.visibility === 'roles' && (
-                    <span>{preview.visibleRoles.map(role => role.name).join('、') || '未选择身份'}</span>
+                    <span>{preview.visibleRoles.map(role => role.name).join(', ') || t('noRole')}</span>
                   )}
                 </div>
 
@@ -96,7 +99,7 @@ export function PostPreviewDialog({
                   disabled
                   showToolbar={false}
                   minHeight={120}
-                  ariaLabel="文章预览正文"
+                  ariaLabel={t('previewContent')}
                 />
               </div>
 

@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import { EditorContent } from '@tiptap/react'
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { EditorToolbar } from '@/components/tiptap-ui/editor-toolbar'
 import { useTiptapEditor } from '@/hooks/use-tiptap-editor'
@@ -23,8 +24,9 @@ export function SimpleEditor({
   disabled = false,
   showToolbar = true,
   minHeight = 320,
-  ariaLabel = '正文编辑器',
+  ariaLabel,
 }: SimpleEditorProps) {
+  const t = useTranslations('Console.editor')
   const [internalValue, setInternalValue] = useState(defaultValue)
   const [fullscreen, setFullscreen] = useState(false)
   const controlled = value !== undefined
@@ -58,7 +60,7 @@ export function SimpleEditor({
 
   return (
     <div
-      aria-label={ariaLabel}
+      aria-label={ariaLabel || t('content')}
       className={fullscreen
         ? 'fixed inset-0 z-50 flex flex-col overflow-hidden bg-white dark:bg-neutral-950'
         : 'overflow-hidden rounded-md border border-black/15 dark:border-white/15'}

@@ -55,6 +55,16 @@ func GetPostDetail(ctx context.Context, slugOrID string, viewerID uint, role con
 	}
 
 	result := post.ToDto()
+	if viewerID > 0 {
+		liked, err := repo.IsPostLiked(ctx, post.ID, viewerID)
+		if err != nil {
+			return dto.PostDetailResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"get post like status failed",
+			)
+		}
+		result.Liked = liked
+	}
 
 	result.Category = toCategoryResponse(post.Category)
 
@@ -83,13 +93,7 @@ func canManagePost(
 	viewerID uint,
 	role constant.Role,
 ) bool {
-	if role == constant.RoleAdmin {
-		return true
-	}
-
-	return role == constant.RoleEditor &&
-		viewerID > 0 &&
-		post.AuthorID == viewerID
+	return role == constant.RoleAdmin
 }
 
 func resolvedPostVisibility(post model.Post) constant.PostVisibility {
@@ -221,27 +225,14 @@ func ListPosts(
 	}
 
 	if req.Status == "draft" || req.Status == "all" {
-		switch role {
-		case constant.RoleAdmin:
-			filter.PublicOnly = false
-			filter.Status = req.Status
-		case constant.RoleEditor:
-			if viewerID == 0 {
-				return dto.PostListResponse{}, errs.NewForbidden(
-					http.StatusForbidden,
-					"post list access denied",
-				)
-			}
-
-			filter.PublicOnly = false
-			filter.Status = req.Status
-			filter.AuthorID = viewerID
-		default:
+		if role != constant.RoleAdmin {
 			return dto.PostListResponse{}, errs.NewForbidden(
 				http.StatusForbidden,
 				"post list access denied",
 			)
 		}
+		filter.PublicOnly = false
+		filter.Status = req.Status
 	}
 
 	posts, total, err := repo.ListPosts(ctx, filter)
@@ -291,9 +282,60 @@ func GetRandomPost(
 	}
 
 	result := post.ToDto()
+	if viewerID > 0 {
+		liked, err := repo.IsPostLiked(ctx, post.ID, viewerID)
+		if err != nil {
+			return dto.PostDetailResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"get post like status failed",
+			)
+		}
+		result.Liked = liked
+	}
 	result.Category = toCategoryResponse(post.Category)
 
 	return result, nil
+}
+
+func TogglePostLike(
+	ctx context.Context,
+	postID uint,
+	viewerID uint,
+	role constant.Role,
+	viewerRoleID uint,
+) (dto.PostLikeResponse, error) {
+	post, err := repo.GetPostByID(ctx, postID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.PostLikeResponse{}, errs.NewNotFound(
+			http.StatusNotFound,
+			"post not found",
+		)
+	}
+	if err != nil {
+		return dto.PostLikeResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get post failed",
+		)
+	}
+	if post.Content == "" || !canViewPost(post, viewerID, role, viewerRoleID) {
+		return dto.PostLikeResponse{}, errs.NewNotFound(
+			http.StatusNotFound,
+			"post not found",
+		)
+	}
+
+	liked, likeCount, err := repo.TogglePostLike(ctx, postID, viewerID)
+	if err != nil {
+		return dto.PostLikeResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"toggle post like failed",
+		)
+	}
+
+	return dto.PostLikeResponse{
+		Liked:     liked,
+		LikeCount: likeCount,
+	}, nil
 }
 
 var invalidPostSlugCharacters = regexp.MustCompile(`[^\p{L}\p{N}]+`)
@@ -459,8 +501,7 @@ func CreatePost(
         role constant.Role,
         req dto.CreatePostRequest,
   ) (dto.PostDetailResponse, error) {
-        if authorID == 0 ||
-                (role != constant.RoleEditor && role != constant.RoleAdmin) {
+        if authorID == 0 || role != constant.RoleAdmin {
                 return dto.PostDetailResponse{}, errs.NewForbidden(
                         http.StatusForbidden,
                         "create post access denied",

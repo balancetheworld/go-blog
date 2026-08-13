@@ -11,5 +11,6 @@ func RegisterRoutes(group *route.RouterGroup) {
     registerPostRoutes(group)
 	registerCommentRoutes(group)
 	registerDiaryRoutes(group)
+	registerMomentRoutes(group)
 	registerFileRoutes(group)
 }

@@ -8,6 +8,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import Typography from '@tiptap/extension-typography'
 import { useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import { useTranslations } from 'next-intl'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { uploadImage } from '@/api/file'
@@ -25,6 +26,7 @@ export function useTiptapEditor({
   editable = true,
   onChange,
 }: UseTiptapEditorOptions) {
+  const t = useTranslations('Console.editor')
   const editorRef = useRef<Editor | null>(null)
   const editor = useEditor({
     extensions: [
@@ -59,7 +61,7 @@ export function useTiptapEditor({
               .setImage({ src: uploadedImage.url, alt: image.name })
               .run()
           })
-          .catch(() => toast.error('粘贴图片上传失败'))
+          .catch(() => toast.error(t('pasteUploadFailed')))
 
         return true
       },

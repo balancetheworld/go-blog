@@ -1,49 +1,63 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  ArrowRight,
   FilePenLine,
   FileText,
   MessageSquare,
+  Plus,
   Users,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 
 interface Statistic {
-  label: string
+  label: 'postCount' | 'commentCount' | 'userCount' | 'draftCount'
   value: string
   icon: LucideIcon
 }
 
 const statistics: Statistic[] = [
   {
-    label: '文章总数',
+    label: 'postCount',
     value: '--',
     icon: FileText,
   },
   {
-    label: '评论总数',
+    label: 'commentCount',
     value: '--',
     icon: MessageSquare,
   },
   {
-    label: '用户总数',
+    label: 'userCount',
     value: '--',
     icon: Users,
   },
   {
-    label: '草稿总数',
+    label: 'draftCount',
     value: '--',
     icon: FilePenLine,
   },
 ]
 
 export function Dashboard() {
-  return (
-    <div className="space-y-8">
-      <section aria-labelledby="dashboard-title">
-        <h1 id="dashboard-title" className="text-2xl font-semibold">
-          数据概览
-        </h1>
+  const t = useTranslations('Console.dashboard')
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  return (
+    <div className="console-dashboard">
+      <section aria-labelledby="dashboard-title" className="console-dashboard-overview">
+        <div className="console-page-heading">
+          <div>
+            <span>{t('eyebrow')}</span>
+            <h1 id="dashboard-title">{t('title')}</h1>
+            <p>{t('description')}</p>
+          </div>
+          <Link href="/console/posts/new" className="console-primary-action">
+            <Plus aria-hidden="true" />
+            <span>{t('newPost')}</span>
+          </Link>
+        </div>
+
+        <div className="console-stat-grid">
           {statistics.map(({
             icon: Icon,
             label,
@@ -51,15 +65,15 @@ export function Dashboard() {
           }) => (
             <div
               key={label}
-              className="min-h-24 rounded-lg border border-black/10 p-4 dark:border-white/10"
+              className="console-stat-card"
             >
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-neutral-500">
-                  {label}
+              <div>
+                <span>
+                  {t(label)}
                 </span>
-                <Icon aria-hidden="true" size={18} />
+                <Icon aria-hidden="true" />
               </div>
-              <p className="mt-3 text-2xl font-semibold">
+              <p>
                 {value}
               </p>
             </div>
@@ -67,23 +81,27 @@ export function Dashboard() {
         </div>
       </section>
 
-      <div className="grid gap-8 xl:grid-cols-2">
-        <section aria-labelledby="recent-posts-title">
-          <h2 id="recent-posts-title" className="text-lg font-semibold">
-            最近文章
-          </h2>
-          <div className="mt-4 border-t border-black/10 py-6 text-sm text-neutral-500 dark:border-white/10">
-            暂无文章数据
+      <div className="console-dashboard-grid">
+        <section aria-labelledby="recent-posts-title" className="console-dashboard-section">
+          <div className="console-section-heading">
+            <h2 id="recent-posts-title">{t('recentPosts')}</h2>
+            <Link href="/console/posts">
+              {t('viewAll')}
+              <ArrowRight aria-hidden="true" />
+            </Link>
           </div>
+          <p className="console-empty-state">{t('noPosts')}</p>
         </section>
 
-        <section aria-labelledby="recent-comments-title">
-          <h2 id="recent-comments-title" className="text-lg font-semibold">
-            最近评论
-          </h2>
-          <div className="mt-4 border-t border-black/10 py-6 text-sm text-neutral-500 dark:border-white/10">
-            暂无评论数据
+        <section aria-labelledby="recent-comments-title" className="console-dashboard-section">
+          <div className="console-section-heading">
+            <h2 id="recent-comments-title">{t('recentComments')}</h2>
+            <Link href="/console/comments">
+              {t('viewAll')}
+              <ArrowRight aria-hidden="true" />
+            </Link>
           </div>
+          <p className="console-empty-state">{t('noComments')}</p>
         </section>
       </div>
     </div>

@@ -1,10 +1,12 @@
 'use client'
 
 import { Moon, Sun } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 
 export function ThemeToggle() {
+  const t = useTranslations('Common')
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -19,13 +21,13 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setTheme(dark ? 'light' : 'dark')}
       disabled={!mounted}
-      aria-label={dark ? '切换浅色主题' : '切换深色主题'}
-      title={dark ? '切换浅色主题' : '切换深色主题'}
-      className="inline-flex size-9 items-center justify-center rounded-md border border-black/10 disabled:opacity-50 dark:border-white/10"
+      aria-label={dark ? t('switchToLight') : t('switchToDark')}
+      title={dark ? t('switchToLight') : t('switchToDark')}
+      className="console-icon-button"
     >
       {dark
-        ? <Sun className="size-4" aria-hidden="true" />
-        : <Moon className="size-4" aria-hidden="true" />}
+        ? <Sun aria-hidden="true" />
+        : <Moon aria-hidden="true" />}
     </button>
   )
 }

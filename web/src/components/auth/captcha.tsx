@@ -2,6 +2,7 @@
 
 import type { CaptchaConfig } from '@/models/user'
 import { Turnstile } from '@marsidev/react-turnstile'
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { getCaptchaConfig } from '@/api/user'
 
@@ -14,6 +15,7 @@ export function Captcha({
   onTokenChange,
   onRequiredChange,
 }: CaptchaProps) {
+  const t = useTranslations('Auth.captcha')
   const [config, setConfig] = useState<CaptchaConfig | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
 
@@ -42,16 +44,16 @@ export function Captcha({
   }, [onRequiredChange])
 
   if (loadFailed)
-    return <p role="alert">人机验证加载失败</p>
+    return <p role="alert">{t('loadFailed')}</p>
 
   if (config === null)
-    return <p>正在加载人机验证</p>
+    return <p>{t('loading')}</p>
 
   if (config.provider === 'disable')
     return null
 
   if (config.provider !== 'turnstile' || !config.siteKey)
-    return <p role="alert">当前人机验证配置不可用</p>
+    return <p role="alert">{t('unavailable')}</p>
 
   return (
     <Turnstile

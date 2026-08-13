@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import {
   DiaryServerError,
@@ -5,6 +6,8 @@ import {
   listDiaryFolders,
 } from '@/api/diary.server'
 import { DiaryFolderCard, DiaryList } from '@/components/diary'
+import { DiaryFolderMedia } from '@/components/diary/diary-folder-media'
+import { allDiaryFolderMedia } from '@/lib/diary-folders'
 
 type QueryValue = string | string[] | undefined
 
@@ -43,6 +46,7 @@ function createDiaryHref(
 }
 
 export default async function DiaryPage({ searchParams }: DiaryPageProps) {
+  const t = await getTranslations('Diary')
   const params = await searchParams
   const page = positiveInteger(params.page) ?? 1
   const folderID = positiveInteger(params.folder)
@@ -62,77 +66,101 @@ export default async function DiaryPage({ searchParams }: DiaryPageProps) {
     const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize))
 
     return (
-      <section aria-labelledby="diary-title" className="space-y-8">
-        <header className="border-b border-black/10 pb-6 dark:border-white/10">
-          <h1 id="diary-title" className="text-3xl font-semibold">日记</h1>
-          <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-            记录日常片段与阶段思考
-          </p>
-        </header>
-
-        {folders.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {folders.map(folder => (
-              <DiaryFolderCard
-                key={folder.id}
-                folder={folder}
-                active={folder.id === folderID}
-              />
-            ))}
+      <main>
+        <section aria-labelledby="diary-title" className="section diary" id="diary">
+          <div className="section-header">
+            <h1 id="diary-title" className="section-title">
+              <span className="title-num">02</span>
+              <span className="title-text">{t('title')}</span>
+            </h1>
+            <p className="section-sub">{t('subtitle')}</p>
           </div>
-        )}
 
-        <form action="/diary" className="flex flex-wrap gap-3">
-          <input
-            type="search"
-            name="keyword"
-            defaultValue={keyword}
-            placeholder="搜索日记"
-            aria-label="搜索日记"
-            className="min-h-10 min-w-56 flex-1 rounded-md border border-black/15 px-3 dark:border-white/15"
-          />
-          {folderID && <input type="hidden" name="folder" value={folderID} />}
-          <button
-            type="submit"
-            className="min-h-10 rounded-md bg-black px-4 text-sm text-white dark:bg-white dark:text-black"
-          >
-            搜索
-          </button>
-          {(keyword || folderID) && (
-            <Link href="/diary" className="inline-flex min-h-10 items-center px-2 text-sm">
-              清除筛选
-            </Link>
-          )}
-        </form>
+          <div className="diary-archive design-diary-live">
+            <div className="diary-topline">
+              <div className="diary-months">
+                <span className="diary-month active">{t('allRecords')}</span>
+              </div>
+              <form action="/diary" className="diary-search-form">
+                <label className="article-search">
+                  <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input type="search" name="keyword" defaultValue={keyword} placeholder={t('searchLabel')} aria-label={t('searchLabel')} />
+                </label>
+                {folderID && <input type="hidden" name="folder" value={folderID} />}
+                <button type="submit" className="filter-chip active">{t('search')}</button>
+              </form>
+            </div>
 
-        <DiaryList diaries={result.items} />
+            <div className={`diary-folder-view${folderID ? ' has-active' : ''}`}>
+              <Link href="/diary" className={`diary-folder diary-folder-all${folderID ? '' : ' is-active'}`}>
+                <span className="folder-paper paper-one" />
+                <span className="folder-paper paper-two" />
+                <span className="folder-back" />
+                <span className="folder-front">
+                  <DiaryFolderMedia media={allDiaryFolderMedia} />
+                </span>
+                <span className="folder-tab">{t('all')}</span>
+                <span className="folder-meta">{t('allDescription')}</span>
+              </Link>
+              {folders.map(folder => (
+                <DiaryFolderCard key={folder.id} folder={folder} active={folder.id === folderID} />
+              ))}
+            </div>
 
-        <nav aria-label="日记分页" className="flex min-h-10 items-center justify-between text-sm">
-          {page > 1
-            ? <Link href={createDiaryHref(page - 1, keyword, folderID)}>上一页</Link>
-            : <span className="text-neutral-400">上一页</span>}
-          <span>
-            {result.page}
-            {' / '}
-            {totalPages}
-          </span>
-          {page < totalPages
-            ? <Link href={createDiaryHref(page + 1, keyword, folderID)}>下一页</Link>
-            : <span className="text-neutral-400">下一页</span>}
-        </nav>
-      </section>
+            <div className="diary-atmosphere" aria-hidden="true">
+              <span className="diary-float diary-float-photo" />
+              <span className="diary-float diary-float-ticket" />
+              <span className="diary-float diary-float-note" />
+              <span className="diary-float diary-float-dot" />
+              <span className="diary-orbit">
+                <i />
+                <i />
+                <i />
+              </span>
+            </div>
+
+            <div className="diary-list-view">
+              <div className="diary-list-head">
+                <h2 className="diary-list-title">{folderID ? t('folderDiaries') : t('allDiaries')}</h2>
+                {(keyword || folderID) && <Link href="/diary" className="diary-back">{t('clear')}</Link>}
+              </div>
+              <DiaryList diaries={result.items} />
+              <nav aria-label={t('pagination')} className="design-pagination">
+                {page > 1
+                  ? <Link href={createDiaryHref(page - 1, keyword, folderID)}>{t('previous')}</Link>
+                  : <span aria-disabled="true">{t('previous')}</span>}
+                <span>
+                  {result.page}
+                  {' / '}
+                  {totalPages}
+                </span>
+                {page < totalPages
+                  ? <Link href={createDiaryHref(page + 1, keyword, folderID)}>{t('next')}</Link>
+                  : <span aria-disabled="true">{t('next')}</span>}
+              </nav>
+            </div>
+          </div>
+        </section>
+      </main>
     )
   }
   catch (error) {
     const message = error instanceof DiaryServerError
       ? error.message
-      : '日记列表暂时无法加载'
+      : t('unavailable')
 
     return (
-      <section className="border-y border-black/10 py-12 dark:border-white/10">
-        <h1 className="text-2xl font-semibold">日记加载失败</h1>
-        <p className="mt-3 text-neutral-600 dark:text-neutral-400">{message}</p>
-      </section>
+      <main>
+        <section className="section diary">
+          <div className="article-empty visible">
+            <h1>{t('loadFailed')}</h1>
+            <p>{message}</p>
+          </div>
+        </section>
+      </main>
     )
   }
 }

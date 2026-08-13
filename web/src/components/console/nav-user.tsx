@@ -3,9 +3,9 @@
 import type { User } from '@/models/user'
 import * as Avatar from '@radix-ui/react-avatar'
 import { LogOut, UserRound } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { useAuth } from '@/contexts/auth-context'
+import { LogoutDialog } from '@/components/auth/logout-dialog'
 
 interface NavUserProps {
   user: Pick<User, 'username' | 'nickname' | 'avatar'>
@@ -14,57 +14,46 @@ interface NavUserProps {
 export function NavUser({
   user,
 }: NavUserProps) {
+  const t = useTranslations('Common')
   const router = useRouter()
-  const { logout } = useAuth()
-  const [loggingOut, setLoggingOut] = useState(false)
-
-  async function handleLogout() {
-    if (loggingOut)
-      return
-
-    setLoggingOut(true)
-
-    try {
-      await logout()
-      router.replace('/auth/login')
-      router.refresh()
-    }
-    finally {
-      setLoggingOut(false)
-    }
-  }
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <Avatar.Root className="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+    <div className="console-user">
+      <div className="console-user-profile">
+        <Avatar.Root className="console-user-avatar">
           <Avatar.Image
             src={user.avatar}
             alt={user.nickname || user.username}
-            className="size-full object-cover"
+            className="console-user-image"
           />
           <Avatar.Fallback delayMs={200}>
             <UserRound
-              className="size-4 text-neutral-500"
+              className="console-user-fallback"
               aria-hidden="true"
             />
           </Avatar.Fallback>
         </Avatar.Root>
-        <span className="max-w-32 truncate text-sm">
+        <span className="console-user-name">
           {user.nickname || user.username}
         </span>
       </div>
 
-      <button
-        type="button"
-        disabled={loggingOut}
-        onClick={() => void handleLogout()}
-        aria-label="退出登录"
-        title="退出登录"
-        className="inline-flex size-9 items-center justify-center rounded-md border border-black/10 disabled:opacity-50 dark:border-white/10"
-      >
-        <LogOut className="size-4" aria-hidden="true" />
-      </button>
+      <LogoutDialog
+        onLoggedOut={() => {
+          router.replace('/auth/login')
+          router.refresh()
+        }}
+        trigger={(
+          <button
+            type="button"
+            aria-label={t('logout')}
+            title={t('logout')}
+            className="console-icon-button"
+          >
+            <LogOut aria-hidden="true" />
+          </button>
+        )}
+      />
     </div>
   )
 }

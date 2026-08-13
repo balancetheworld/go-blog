@@ -10,12 +10,12 @@ import (
 func registerRoleRoutes(group *route.RouterGroup) {
 	role := group.Group("/role")
 	role.GET("/requestable", controller.ListRequestableRoles)
-	editor := group.Group(
+	options := group.Group(
 		"/role",
 		middleware.UseAuth(true),
-		middleware.UseRole(constant.RoleEditor),
+		middleware.UseRole(constant.RoleAdmin),
 	)
-	editor.GET("/options", controller.ListEnabledRoleOptions)
+	options.GET("/options", controller.ListEnabledRoleOptions)
 	admin := group.Group(
 		"/role",
 		middleware.UseAuth(true),

@@ -3,6 +3,7 @@ package constant
 type RoleApplicationStatus string
 
 const (
+	RoleCodeGuest  = "guest"
 	RoleCodeMember = "member"
 	RoleCodeEditor = "editor"
 	RoleCodeAdmin  = "admin"

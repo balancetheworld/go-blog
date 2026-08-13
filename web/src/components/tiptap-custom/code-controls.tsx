@@ -1,11 +1,12 @@
 'use client'
 
 import type { Editor } from '@tiptap/react'
+import { useTranslations } from 'next-intl'
 import { Braces, Code } from '@/components/tiptap-icons'
 import { EditorButton } from '@/components/tiptap-ui-primitive/editor-button'
 
 const languages = [
-  { label: '自动识别', value: '' },
+  { label: '', value: '' },
   { label: 'JavaScript', value: 'javascript' },
   { label: 'TypeScript', value: 'typescript' },
   { label: 'JSX', value: 'jsx' },
@@ -40,6 +41,8 @@ export function CodeControls({
   codeBlock = false,
   language = '',
 }: CodeControlsProps) {
+  const t = useTranslations('Console.editor')
+
   function changeLanguage(value: string) {
     if (!editor)
       return
@@ -55,7 +58,7 @@ export function CodeControls({
   return (
     <div className="flex items-center gap-1">
       <EditorButton
-        label="行内代码"
+        label={t('inlineCode')}
         active={inlineCode}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleCode().run()}
@@ -63,7 +66,7 @@ export function CodeControls({
         <Code className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
-        label="代码块"
+        label={t('codeBlock')}
         active={codeBlock}
         disabled={!editor || disabled}
         onClick={() => editor?.chain().focus().toggleCodeBlock({ language }).run()}
@@ -71,15 +74,15 @@ export function CodeControls({
         <Braces className="size-4" aria-hidden="true" />
       </EditorButton>
       <select
-        aria-label="代码语言"
-        title="代码语言"
+        aria-label={t('codeLanguage')}
+        title={t('codeLanguage')}
         value={language}
         disabled={!editor || disabled}
         onChange={event => changeLanguage(event.target.value)}
         className="h-9 max-w-32 rounded-md border border-black/15 bg-transparent px-2 text-xs disabled:opacity-40 dark:border-white/15"
       >
         {languages.map(item => (
-          <option key={item.value} value={item.value}>{item.label}</option>
+          <option key={item.value} value={item.value}>{item.value ? item.label : t('autoLanguage')}</option>
         ))}
       </select>
     </div>

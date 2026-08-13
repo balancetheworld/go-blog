@@ -1,6 +1,8 @@
 'use client'
 
 import type { FormEvent } from 'react'
+import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -8,6 +10,7 @@ import { Captcha } from '@/components/auth/captcha'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function LoginPage() {
+  const t = useTranslations('Auth.login')
   const router = useRouter()
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
@@ -28,12 +31,12 @@ export default function LoginPage() {
         rememberMe,
         captchaToken: captchaToken || undefined,
       })
-      toast.success('登录成功')
+      toast.success(t('success'))
       router.replace('/')
       router.refresh()
     }
     catch {
-      toast.error('登录失败，请检查用户名和密码')
+      toast.error(t('failed'))
     }
     finally {
       setSubmitting(false)
@@ -41,60 +44,68 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
-      <form onSubmit={handleSubmit}>
-        <h1>登录</h1>
-        <div>
-          <label htmlFor="account">
-            用户名或邮箱
-          </label>
-          <input
-            id="account"
-            name="account"
-            type="text"
-            autoComplete="username"
-            required
-            value={account}
-            onChange={event => setAccount(event.target.value)}
-            className="mt-2 h-10 w-full border border-black/20 px-3 dark:border-white/20"
-          />
-        </div>
-        <div>
-          <label htmlFor="password">
-            密码
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={event => setPassword(event.target.value)}
-            className="mt-2 h-10 w-full border border-black/20 px-3 dark:border-white/20"
-          />
-        </div>
-        <label>
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={event => setRememberMe(event.target.checked)}
-          />
-          记住我
-        </label>
+    <main className="auth-page-main">
+      <section className="section auth-section">
+        <div className="auth-shell">
+          <form className="auth-card" onSubmit={handleSubmit}>
+            <div className="auth-card-head">
+              <span>{t('title')}</span>
+              <small>{t('subtitle')}</small>
+            </div>
+            <label className="auth-field" htmlFor="account">
+              <span>{t('account')}</span>
+              <input
+                id="account"
+                name="account"
+                type="text"
+                autoComplete="username"
+                placeholder={t('accountPlaceholder')}
+                required
+                value={account}
+                onChange={event => setAccount(event.target.value)}
+              />
+            </label>
+            <label className="auth-field" htmlFor="password">
+              <span>{t('password')}</span>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder={t('passwordPlaceholder')}
+                required
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+              />
+            </label>
+            <div className="auth-row">
+              <label className="auth-check">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={event => setRememberMe(event.target.checked)}
+                />
+                <span>{t('remember')}</span>
+              </label>
+              <Link href="/auth/login" className="auth-link">{t('forgotPassword')}</Link>
+            </div>
 
-        <Captcha
-          onTokenChange={setCaptchaToken}
-          onRequiredChange={setCaptchaRequired}
-        />
+            <Captcha
+              onTokenChange={setCaptchaToken}
+              onRequiredChange={setCaptchaRequired}
+            />
 
-        <button
-          type="submit"
-          disabled={submitting || (captchaRequired && !captchaToken)}
-        >
-          {submitting ? '登录中...' : '登录'}
-        </button>
-      </form>
+            <button
+              type="submit"
+              disabled={submitting || (captchaRequired && !captchaToken)}
+              className="auth-submit"
+            >
+              {submitting ? t('submitting') : t('submit')}
+            </button>
+            <Link href="/auth/register" className="auth-submit auth-submit-ghost">{t('registerLink')}</Link>
+          </form>
+        </div>
+      </section>
     </main>
   )
 }

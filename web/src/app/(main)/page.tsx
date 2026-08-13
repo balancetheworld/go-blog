@@ -1,11 +1,18 @@
 import type { PostSort } from '@/models/post'
+import { getTranslations } from 'next-intl/server'
+import { headers } from 'next/headers'
 import Link from 'next/link'
+import { listDiaries, listDiaryFolders } from '@/api/diary.server'
+import { listMoments } from '@/api/moment.server'
 import {
   listCategories,
-  listLabels,
   listPosts,
   PostServerError,
 } from '@/api/post.server'
+import { DebouncedPostSearch } from '@/components/design/debounced-post-search'
+import { FilterSelect } from '@/components/design/filter-select'
+import { HomeDiaryArchive } from '@/components/home/home-diary-archive'
+import { HomeExperience } from '@/components/home/home-experience'
 import PostList from '@/components/home/post-list'
 
 type QueryValue = string | string[] | undefined
@@ -15,7 +22,6 @@ interface HomePageProps {
     page?: QueryValue
     keyword?: QueryValue
     category?: QueryValue
-    label?: QueryValue
     sort?: QueryValue
   }>
 }
@@ -24,7 +30,6 @@ interface HomeQuery {
   page: number
   keyword: string
   categoryId?: number
-  labelId?: number
   sort: PostSort
 }
 
@@ -45,8 +50,6 @@ function createHomeHref(query: HomeQuery): string {
     params.set('keyword', query.keyword)
   if (query.categoryId)
     params.set('category', String(query.categoryId))
-  if (query.labelId)
-    params.set('label', String(query.labelId))
   if (query.sort !== 'latest')
     params.set('sort', query.sort)
 
@@ -55,135 +58,159 @@ function createHomeHref(query: HomeQuery): string {
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
+  const articleT = await getTranslations('Home.articles')
+  const diaryT = await getTranslations('Home.diaries')
   const params = await searchParams
+  const requestHeaders = await headers()
+  const userAgent = requestHeaders.get('user-agent') ?? ''
+  const pageSize = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent) ? 5 : 10
   const requestedSort = firstValue(params.sort)
   const query: HomeQuery = {
     page: positiveInteger(params.page) ?? 1,
     keyword: firstValue(params.keyword).trim(),
     categoryId: positiveInteger(params.category),
-    labelId: positiveInteger(params.label),
     sort: requestedSort === 'oldest' || requestedSort === 'hot'
       ? requestedSort
       : 'latest',
   }
 
   try {
-    const [result, categories, labels] = await Promise.all([
+    const [result, categories, diaries, diaryFolders, moments] = await Promise.all([
       listPosts({
         page: query.page,
-        pageSize: 10,
+        pageSize,
         keyword: query.keyword,
         categoryId: query.categoryId,
-        labelId: query.labelId,
         status: 'published',
         sort: query.sort,
       }),
       listCategories(),
-      listLabels(),
+      listDiaries({
+        page: 1,
+        pageSize: 6,
+        status: 'published',
+      }).catch(() => null),
+      listDiaryFolders().catch(() => []),
+      listMoments({ page: 1, pageSize: 6 }).catch(() => null),
     ])
     const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize))
 
     return (
-      <section aria-labelledby="latest-posts-title" className="space-y-8">
-        <header className="border-b border-black/10 pb-6 dark:border-white/10">
-          <h1 id="latest-posts-title" className="text-3xl font-semibold">最新文章</h1>
-          <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-            浏览最近发布的公开内容
-          </p>
-        </header>
-
-        <form action="/" className="grid gap-3 border-b border-black/10 pb-6 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_180px_150px_auto] dark:border-white/10">
-          <input
-            type="search"
-            name="keyword"
-            defaultValue={query.keyword}
-            placeholder="搜索标题或摘要"
-            aria-label="搜索文章"
-            className="min-h-10 min-w-0 rounded-md border border-black/15 px-3 dark:border-white/15"
-          />
-          <select
-            name="category"
-            defaultValue={query.categoryId ?? ''}
-            aria-label="按分类筛选"
-            className="min-h-10 rounded-md border border-black/15 px-3 dark:border-white/15"
-          >
-            <option value="">全部分类</option>
-            {categories.map(category => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
-          <select
-            name="label"
-            defaultValue={query.labelId ?? ''}
-            aria-label="按标签筛选"
-            className="min-h-10 rounded-md border border-black/15 px-3 dark:border-white/15"
-          >
-            <option value="">全部标签</option>
-            {labels.map(label => (
-              <option key={label.id} value={label.id}>{label.name}</option>
-            ))}
-          </select>
-          <select
-            name="sort"
-            defaultValue={query.sort}
-            aria-label="文章排序"
-            className="min-h-10 rounded-md border border-black/15 px-3 dark:border-white/15"
-          >
-            <option value="latest">最新发布</option>
-            <option value="oldest">最早发布</option>
-            <option value="hot">热度最高</option>
-          </select>
-          <button
-            type="submit"
-            className="min-h-10 rounded-md bg-black px-4 text-sm text-white dark:bg-white dark:text-black"
-          >
-            筛选
-          </button>
-        </form>
-
-        {(query.keyword || query.categoryId || query.labelId || query.sort !== 'latest') && (
-          <div className="flex items-center justify-between gap-4 text-sm">
-            <span className="text-neutral-500">
-              找到
-              {' '}
-              {result.total}
-              {' '}
-              篇文章
-            </span>
-            <Link href="/" className="font-medium">清除筛选</Link>
+      <main>
+        <section aria-labelledby="latest-posts-title" className="section articles" id="articles">
+          <div className="section-header">
+            <h1 id="latest-posts-title" className="section-title">
+              <span className="title-num">01</span>
+              <span className="title-text">{articleT('title')}</span>
+            </h1>
+            <p className="section-sub">{articleT('subtitle')}</p>
           </div>
+
+          <form action="/" className="article-toolbar">
+            <div className="article-filter" aria-label={articleT('category')}>
+              <Link
+                href={createHomeHref({ ...query, page: 1, categoryId: undefined })}
+                className={`filter-chip${query.categoryId ? '' : ' active'}`}
+              >
+                {articleT('all')}
+              </Link>
+              {categories.map(category => (
+                <Link
+                  key={category.id}
+                  href={createHomeHref({ ...query, page: 1, categoryId: category.id })}
+                  className={`filter-chip${query.categoryId === category.id ? ' active' : ''}`}
+                >
+                  {category.name}
+                </Link>
+              ))}
+            </div>
+            <div className="article-category-select">
+              <FilterSelect
+                name="category"
+                defaultValue={query.categoryId ? String(query.categoryId) : 'all'}
+                ariaLabel={articleT('category')}
+                submitOnChange
+                options={[
+                  { label: articleT('allCategories'), value: 'all' },
+                  ...categories.map(category => ({
+                    label: category.name,
+                    value: String(category.id),
+                  })),
+                ]}
+              />
+            </div>
+            <DebouncedPostSearch initialKeyword={query.keyword} />
+            <FilterSelect
+              name="sort"
+              defaultValue={query.sort}
+              ariaLabel={articleT('sort')}
+              submitOnChange
+              options={[
+                { label: articleT('latest'), value: 'latest' },
+                { label: articleT('oldest'), value: 'oldest' },
+                { label: articleT('hot'), value: 'hot' },
+              ]}
+            />
+          </form>
+
+          {(query.keyword || query.categoryId || query.sort !== 'latest') && (
+            <div className="design-result-summary">
+              <span>{articleT('result', { count: result.total })}</span>
+              <Link href="/">{articleT('clear')}</Link>
+            </div>
+          )}
+
+          <PostList posts={result.items} />
+
+          <nav aria-label={articleT('pagination')} className="design-pagination">
+            {query.page > 1
+              ? <Link href={createHomeHref({ ...query, page: query.page - 1 })}>{articleT('previous')}</Link>
+              : <span aria-disabled="true">{articleT('previous')}</span>}
+            <span>
+              {result.page}
+              {' / '}
+              {totalPages}
+            </span>
+            {query.page < totalPages
+              ? <Link href={createHomeHref({ ...query, page: query.page + 1 })}>{articleT('next')}</Link>
+              : <span aria-disabled="true">{articleT('next')}</span>}
+          </nav>
+        </section>
+
+        {diaries && (
+          <section aria-labelledby="home-diary-title" className="section diary" id="diary">
+            <div className="section-header">
+              <h2 id="home-diary-title" className="section-title">
+                <span className="title-num">02</span>
+                <span className="title-text">{diaryT('title')}</span>
+              </h2>
+              <p className="section-sub">{diaryT('subtitle')}</p>
+            </div>
+            <HomeDiaryArchive diaries={diaries.items} folders={diaryFolders} />
+          </section>
         )}
-
-        <PostList posts={result.items} />
-
-        <nav aria-label="文章分页" className="flex min-h-10 items-center justify-between border-t border-black/10 pt-6 text-sm dark:border-white/10">
-          {query.page > 1
-            ? <Link href={createHomeHref({ ...query, page: query.page - 1 })}>上一页</Link>
-            : <span className="text-neutral-400">上一页</span>}
-          <span>
-            {result.page}
-            {' '}
-            /
-            {' '}
-            {totalPages}
-          </span>
-          {query.page < totalPages
-            ? <Link href={createHomeHref({ ...query, page: query.page + 1 })}>下一页</Link>
-            : <span className="text-neutral-400">下一页</span>}
-        </nav>
-      </section>
+        <HomeExperience
+          posts={result.items}
+          diaries={diaries?.items ?? []}
+          moments={moments?.items ?? []}
+        />
+      </main>
     )
   }
   catch (error) {
     const message = error instanceof PostServerError
       ? error.message
-      : '文章列表暂时无法加载'
+      : articleT('unavailable')
 
     return (
-      <section className="border-y border-black/10 py-12 dark:border-white/10">
-        <h1 className="text-2xl font-semibold">文章加载失败</h1>
-        <p className="mt-3 text-neutral-600 dark:text-neutral-400">{message}</p>
-      </section>
+      <main>
+        <section className="section articles">
+          <div className="article-empty visible">
+            <h1>{articleT('loadFailed')}</h1>
+            <p>{message}</p>
+          </div>
+        </section>
+      </main>
     )
   }
 }

@@ -35,22 +35,27 @@ package apiv1
                 middleware.UseAuth(false),
                 controller.GetRandomPost,
         )
+		post.POST(
+			"/p/:id/like",
+			middleware.UseAuth(true),
+			controller.TogglePostLike,
+		)
 
-        editor := group.Group(
+        admin := group.Group(
                 "/post",
                 middleware.UseAuth(true),
-                middleware.UseRole(constant.RoleEditor),
+                middleware.UseRole(constant.RoleAdmin),
         )
 
-        editor.POST("/p", controller.CreatePost)
-        editor.PUT("/p/:id", controller.UpdatePost)
-        editor.DELETE("/p/:id", controller.DeletePost)
+        admin.POST("/p", controller.CreatePost)
+        admin.PUT("/p/:id", controller.UpdatePost)
+        admin.DELETE("/p/:id", controller.DeletePost)
 
-        editor.POST("/c", controller.CreateCategory)
-        editor.PUT("/c/:id", controller.UpdateCategory)
-        editor.DELETE("/c/:id", controller.DeleteCategory)
+        admin.POST("/c", controller.CreateCategory)
+        admin.PUT("/c/:id", controller.UpdateCategory)
+        admin.DELETE("/c/:id", controller.DeleteCategory)
 
-		editor.POST("/l", controller.CreateLabel)
-		editor.PUT("/l/:id", controller.UpdateLabel)
-		editor.DELETE("/l/:id", controller.DeleteLabel)
+		admin.POST("/l", controller.CreateLabel)
+		admin.PUT("/l/:id", controller.UpdateLabel)
+		admin.DELETE("/l/:id", controller.DeleteLabel)
   }

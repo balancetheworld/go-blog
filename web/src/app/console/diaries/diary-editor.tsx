@@ -8,11 +8,13 @@ import type {
   DiaryVisibility,
 } from '@/models/diary'
 import type { RoleOption } from '@/models/role'
+import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { createDiary, updateDiary } from '@/api/diary'
 import { SimpleEditor } from '@/components/tiptap-editor/simple-editor'
+import { isDiaryFolderSlug } from '@/lib/diary-folders'
 import { isHTMLContentEmpty } from '@/lib/tiptap-advanced-utils'
 
 interface DiaryEditorProps {
@@ -48,6 +50,8 @@ export function DiaryEditor({
   folders,
   roleOptions,
 }: DiaryEditorProps) {
+  const t = useTranslations('Console.diaries')
+  const diaryT = useTranslations('Diary')
   const router = useRouter()
   const [draft, setDraft] = useState(() => createInitialDraft(diary))
   const [saving, setSaving] = useState(false)
@@ -73,11 +77,11 @@ export function DiaryEditor({
     const publish = submitter?.value === 'publish'
 
     if (publish && isHTMLContentEmpty(draft.content)) {
-      toast.error('日记正文不能为空')
+      toast.error(t('contentRequired'))
       return
     }
     if (draft.visibility === 'roles' && draft.visibleRoleIds.length === 0) {
-      toast.error('请选择至少一个可见身份')
+      toast.error(t('roleRequired'))
       return
     }
 
@@ -102,14 +106,14 @@ export function DiaryEditor({
             clearFolder: !draft.folderId,
           })
 
-      toast.success(publish ? '日记已发布' : '草稿已保存')
+      toast.success(publish ? t('publishedMessage') : t('draftSaved'))
       if (isCreating)
         router.replace(`/console/diaries/edit/${savedDiary.id}`)
       else
         router.refresh()
     }
     catch {
-      toast.error(isCreating ? '创建日记失败' : '保存日记失败')
+      toast.error(isCreating ? t('createFailed') : t('saveFailed'))
     }
     finally {
       setSaving(false)
@@ -120,17 +124,17 @@ export function DiaryEditor({
     <form onSubmit={handleSubmit} className="mx-auto max-w-5xl space-y-6">
       <header className="border-b border-black/10 pb-5 dark:border-white/10">
         <h1 className="text-2xl font-semibold">
-          {isCreating ? '新建日记' : '编辑日记'}
+          {isCreating ? t('new') : t('edit')}
         </h1>
         {!isCreating && (
           <p className="mt-1 text-sm text-neutral-500">
-            {diary.status === 'published' ? '已发布' : '草稿'}
+            {diary.status === 'published' ? t('published') : t('draft')}
           </p>
         )}
       </header>
 
       <label className="block space-y-2">
-        <span className="text-sm">标题</span>
+        <span className="text-sm">{t('titleField')}</span>
         <input
           value={draft.title}
           maxLength={200}
@@ -140,7 +144,7 @@ export function DiaryEditor({
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">摘要</span>
+        <span className="text-sm">{t('description')}</span>
         <textarea
           value={draft.description}
           maxLength={500}
@@ -152,7 +156,7 @@ export function DiaryEditor({
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="block space-y-2">
-          <span className="text-sm">封面地址</span>
+          <span className="text-sm">{t('cover')}</span>
           <input
             value={draft.cover}
             maxLength={500}
@@ -161,22 +165,24 @@ export function DiaryEditor({
           />
         </label>
         <label className="block space-y-2">
-          <span className="text-sm">文件夹</span>
+          <span className="text-sm">{t('folder')}</span>
           <select
             value={draft.folderId}
             onChange={event => setDraft(current => ({ ...current, folderId: event.target.value }))}
             className="min-h-11 w-full rounded-md border border-black/15 px-3 dark:border-white/15"
           >
-            <option value="">未分类</option>
+            <option value="">{t('uncategorized')}</option>
             {folders.map(folder => (
-              <option key={folder.id} value={folder.id}>{folder.name}</option>
+              <option key={folder.id} value={folder.id}>
+                {isDiaryFolderSlug(folder.slug) ? diaryT(`folders.${folder.slug}`) : folder.name}
+              </option>
             ))}
           </select>
         </label>
       </div>
 
       <fieldset className="space-y-3 border-y border-black/10 py-5 dark:border-white/10">
-        <legend className="text-sm">可见范围</legend>
+        <legend className="text-sm">{t('visibility')}</legend>
         <div className="flex flex-wrap gap-4 text-sm">
           {(['public', 'roles', 'private'] as const).map(value => (
             <label key={value} className="inline-flex items-center gap-2">
@@ -187,7 +193,7 @@ export function DiaryEditor({
                 checked={draft.visibility === value}
                 onChange={() => setDraft(current => ({ ...current, visibility: value }))}
               />
-              {value === 'public' ? '公开' : value === 'roles' ? '指定身份' : '私密'}
+              {value === 'public' ? t('public') : value === 'roles' ? t('roles') : t('private')}
             </label>
           ))}
         </div>
@@ -208,12 +214,12 @@ export function DiaryEditor({
       </fieldset>
 
       <div className="space-y-2">
-        <span className="text-sm">正文</span>
+        <span className="text-sm">{t('content')}</span>
         <SimpleEditor
           value={draft.content}
           onChange={content => setDraft(current => ({ ...current, content }))}
           minHeight={420}
-          ariaLabel="日记正文编辑器"
+          ariaLabel={t('editorLabel')}
         />
       </div>
 
@@ -224,7 +230,7 @@ export function DiaryEditor({
           disabled={saving}
           className="min-h-10 rounded-md border border-black/15 px-4 text-sm disabled:opacity-50 dark:border-white/15"
         >
-          保存草稿
+          {t('saveDraft')}
         </button>
         <button
           type="submit"
@@ -232,7 +238,7 @@ export function DiaryEditor({
           disabled={saving}
           className="min-h-10 rounded-md bg-black px-4 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
         >
-          {saving ? '保存中' : '发布'}
+          {saving ? t('saving') : t('publish')}
         </button>
       </div>
     </form>

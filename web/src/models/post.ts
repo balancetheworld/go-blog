@@ -42,6 +42,7 @@ export interface Post {
   visibleRoles: RoleOption[]
   top: boolean
   likeCount: number
+  liked: boolean
   commentCount: number
   viewCount: number
   heat: number
@@ -92,6 +93,11 @@ export interface PostListResponse {
   total: number
   page: number
   pageSize: number
+}
+
+export interface PostLikeResponse {
+  liked: boolean
+  likeCount: number
 }
 
 export interface CreatePostReq {

@@ -293,6 +293,38 @@ import (
         resps.Ok(c, resps.Success, nil)
   }
 
+	func TogglePostLike(
+		ctx context.Context,
+		c *app.RequestContext,
+	) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil || id == 0 {
+			resps.BadRequest(c, resps.ErrParamInvalid)
+			return
+		}
+
+		userID, ok := middleware.GetCurrentUserID(c)
+		if !ok {
+			resps.Unauthorized(c, resps.ErrUnauthorized)
+			return
+		}
+
+		roleID, _ := middleware.GetCurrentRoleID(c)
+		result, err := service.TogglePostLike(
+			ctx,
+			uint(id),
+			userID,
+			middleware.GetCurrentRole(c),
+			roleID,
+		)
+		if err != nil {
+			resps.Error(c, err)
+			return
+		}
+
+		resps.Ok(c, resps.Success, result)
+	}
+
   func CreateCategory(
         ctx context.Context,
         c *app.RequestContext,

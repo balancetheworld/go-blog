@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { listPosts } from '@/api/post.server'
@@ -21,10 +22,11 @@ function createPageHref(page: number, keyword: string) {
 }
 
 export default async function ConsolePostsPage({ searchParams }: ConsolePostsPageProps) {
+  const t = await getTranslations('Console.posts')
   const currentUser = await getCurrentUser()
   if (!currentUser)
     redirect('/auth/login?next=/console/posts')
-  if (currentUser.role !== 'admin' && currentUser.role !== 'editor')
+  if (currentUser.role !== 'admin')
     notFound()
 
   const params = await searchParams
@@ -52,17 +54,17 @@ export default async function ConsolePostsPage({ searchParams }: ConsolePostsPag
       />
 
       <nav
-        aria-label="文章分页"
+        aria-label={t('pagination')}
         className="flex items-center justify-end gap-4 text-sm"
       >
         {page > 1
           ? (
               <Link href={createPageHref(page - 1, keyword)}>
-                上一页
+                {t('previous')}
               </Link>
             )
           : (
-              <span className="text-neutral-400">上一页</span>
+              <span className="text-neutral-400">{t('previous')}</span>
             )}
 
         <span>
@@ -76,11 +78,11 @@ export default async function ConsolePostsPage({ searchParams }: ConsolePostsPag
         {page < totalPages
           ? (
               <Link href={createPageHref(page + 1, keyword)}>
-                下一页
+                {t('next')}
               </Link>
             )
           : (
-              <span className="text-neutral-400">下一页</span>
+              <span className="text-neutral-400">{t('next')}</span>
             )}
       </nav>
     </section>

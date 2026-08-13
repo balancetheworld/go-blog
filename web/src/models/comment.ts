@@ -1,6 +1,6 @@
 import type { User } from './user'
 
-export type CommentTargetType = 'post' | 'page' | 'comment' | 'diary'
+export type CommentTargetType = 'post' | 'page' | 'comment' | 'diary' | 'guestbook'
 
 export type CommentContentTargetType = Exclude<CommentTargetType, 'comment'>
 

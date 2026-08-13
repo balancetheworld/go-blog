@@ -1,6 +1,7 @@
 'use client'
 
 import type { Editor } from '@tiptap/react'
+import { useTranslations } from 'next-intl'
 import { Palette, RemoveFormatting } from '@/components/tiptap-icons'
 import { EditorButton } from '@/components/tiptap-ui-primitive/editor-button'
 import { EditorPopover } from '@/components/tiptap-ui-primitive/editor-popover'
@@ -13,12 +14,14 @@ interface ColorPickerProps {
 }
 
 export function ColorPicker({ editor, disabled = false }: ColorPickerProps) {
+  const t = useTranslations('Console.editor')
+
   return (
     <EditorPopover
-      ariaLabel="文字颜色"
+      ariaLabel={t('textColor')}
       trigger={(
         <EditorButton
-          label="文字颜色"
+          label={t('textColor')}
           disabled={!editor || disabled}
           onClick={() => {}}
         >
@@ -31,7 +34,7 @@ export function ColorPicker({ editor, disabled = false }: ColorPickerProps) {
           <button
             key={color}
             type="button"
-            aria-label={`设置文字颜色 ${color}`}
+            aria-label={t('setTextColor', { color })}
             title={color}
             onClick={() => editor?.chain().focus().setColor(color).run()}
             className="size-7 rounded-sm border border-black/15 dark:border-white/15"
@@ -40,8 +43,8 @@ export function ColorPicker({ editor, disabled = false }: ColorPickerProps) {
         ))}
         <button
           type="button"
-          aria-label="清除文字颜色"
-          title="清除文字颜色"
+          aria-label={t('clearTextColor')}
+          title={t('clearTextColor')}
           onClick={() => editor?.chain().focus().unsetColor().run()}
           className="inline-flex size-7 items-center justify-center rounded-sm border border-black/15 dark:border-white/15"
         >

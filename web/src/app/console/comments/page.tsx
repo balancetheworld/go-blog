@@ -1,3 +1,4 @@
+import { getLocale, getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { listAdminComments } from '@/api/comment.server'
@@ -8,14 +9,8 @@ interface CommentsPageProps {
   searchParams: Promise<{
     page?: string
     keyword?: string
-    targetType?: 'post' | 'page' | 'diary'
+    targetType?: 'post' | 'page' | 'diary' | 'guestbook'
   }>
-}
-
-const targetNames = {
-  post: '文章',
-  page: '页面',
-  diary: '日记',
 }
 
 function createPageHref(
@@ -36,6 +31,8 @@ function createPageHref(
 export default async function CommentsPage({
   searchParams,
 }: CommentsPageProps) {
+  const locale = await getLocale()
+  const t = await getTranslations('Console.adminComments')
   const user = await getCurrentUser()
   if (!user || user.role !== 'admin')
     notFound()
@@ -56,13 +53,9 @@ export default async function CommentsPage({
   return (
     <section aria-labelledby="comments-title" className="space-y-6">
       <header>
-        <h1 id="comments-title" className="text-2xl font-semibold">评论管理</h1>
+        <h1 id="comments-title" className="text-2xl font-semibold">{t('title')}</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          共
-          {' '}
-          {result.total}
-          {' '}
-          条评论
+          {t('count', { count: result.total })}
         </p>
       </header>
 
@@ -70,7 +63,7 @@ export default async function CommentsPage({
         <input
           name="keyword"
           defaultValue={keyword}
-          placeholder="搜索评论内容"
+          placeholder={t('search')}
           className="min-h-10 min-w-48 flex-1 rounded-md border border-black/15 px-3 dark:border-white/15"
         />
         <select
@@ -78,16 +71,17 @@ export default async function CommentsPage({
           defaultValue={targetType}
           className="min-h-10 rounded-md border border-black/15 px-3 dark:border-white/15"
         >
-          <option value="">全部类型</option>
-          <option value="post">文章</option>
-          <option value="page">页面</option>
-          <option value="diary">日记</option>
+          <option value="">{t('allTypes')}</option>
+          <option value="post">{t('post')}</option>
+          <option value="page">{t('page')}</option>
+          <option value="diary">{t('diary')}</option>
+          <option value="guestbook">{t('guestbook')}</option>
         </select>
         <button
           type="submit"
           className="min-h-10 rounded-md bg-black px-4 text-sm text-white dark:bg-white dark:text-black"
         >
-          查询
+          {t('query')}
         </button>
       </form>
 
@@ -95,12 +89,12 @@ export default async function CommentsPage({
         <table className="w-full min-w-[880px] text-left text-sm">
           <thead className="text-neutral-500">
             <tr>
-              <th className="px-3 py-3">评论内容</th>
-              <th className="px-3 py-3">评论用户</th>
-              <th className="px-3 py-3">目标</th>
-              <th className="px-3 py-3">回复层级</th>
-              <th className="px-3 py-3">时间</th>
-              <th className="px-3 py-3">操作</th>
+              <th className="px-3 py-3">{t('content')}</th>
+              <th className="px-3 py-3">{t('user')}</th>
+              <th className="px-3 py-3">{t('target')}</th>
+              <th className="px-3 py-3">{t('depth')}</th>
+              <th className="px-3 py-3">{t('time')}</th>
+              <th className="px-3 py-3">{t('actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -112,7 +106,7 @@ export default async function CommentsPage({
                   </p>
                   {comment.replyToUser && (
                     <p className="mt-1 text-xs text-neutral-500">
-                      回复
+                      {t('reply')}
                       {' '}
                       {comment.replyToUser.nickname || comment.replyToUser.username}
                     </p>
@@ -125,22 +119,28 @@ export default async function CommentsPage({
                   {comment.targetType === 'diary'
                     ? (
                         <span>
-                          {targetNames[comment.targetType]}
+                          {t(comment.targetType)}
                           {' #'}
                           {comment.targetId}
                         </span>
                       )
-                    : (
-                        <Link href={`/p/${comment.targetId}`}>
-                          {targetNames[comment.targetType]}
-                          {' #'}
-                          {comment.targetId}
-                        </Link>
-                      )}
+                    : comment.targetType === 'guestbook'
+                      ? (
+                          <Link href="/#guestbook">
+                            {t(comment.targetType)}
+                          </Link>
+                        )
+                      : (
+                          <Link href={`/p/${comment.targetId}`}>
+                            {t(comment.targetType)}
+                            {' #'}
+                            {comment.targetId}
+                          </Link>
+                        )}
                 </td>
                 <td className="px-3 py-4">{comment.depth}</td>
                 <td className="px-3 py-4">
-                  {new Date(comment.createdAt).toLocaleString('zh-CN')}
+                  {new Date(comment.createdAt).toLocaleString(locale)}
                 </td>
                 <td className="px-3 py-4">
                   <CommentDeleteButton commentID={comment.id} />
@@ -151,7 +151,7 @@ export default async function CommentsPage({
             {result.items.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-12 text-center text-neutral-500">
-                  暂无评论
+                  {t('empty')}
                 </td>
               </tr>
             )}
@@ -159,10 +159,10 @@ export default async function CommentsPage({
         </table>
       </div>
 
-      <nav className="flex justify-end gap-4 text-sm" aria-label="评论分页">
+      <nav className="flex justify-end gap-4 text-sm" aria-label={t('pagination')}>
         {page > 1
-          ? <Link href={createPageHref(page - 1, keyword, targetType)}>上一页</Link>
-          : <span className="text-neutral-400">上一页</span>}
+          ? <Link href={createPageHref(page - 1, keyword, targetType)}>{t('previous')}</Link>
+          : <span className="text-neutral-400">{t('previous')}</span>}
 
         <span>
           {result.page}
@@ -171,8 +171,8 @@ export default async function CommentsPage({
         </span>
 
         {page < totalPages
-          ? <Link href={createPageHref(page + 1, keyword, targetType)}>下一页</Link>
-          : <span className="text-neutral-400">下一页</span>}
+          ? <Link href={createPageHref(page + 1, keyword, targetType)}>{t('next')}</Link>
+          : <span className="text-neutral-400">{t('next')}</span>}
       </nav>
     </section>
   )

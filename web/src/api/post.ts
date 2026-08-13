@@ -5,6 +5,7 @@ import type {
   CreatePostReq,
   Label,
   Post,
+  PostLikeResponse,
   PostListRequest,
   PostListResponse,
   UpdateCategoryReq,
@@ -66,6 +67,14 @@ export async function updatePost(
 
 export async function deletePost(id: number): Promise<void> {
   await axiosClient.delete(`/post/p/${id}`)
+}
+
+export async function togglePostLike(id: number): Promise<PostLikeResponse> {
+  const response = await axiosClient.post<Resp<PostLikeResponse>>(
+    `/post/p/${id}/like`,
+  )
+
+  return responseData(response.data)
 }
 
 export async function createCategory(

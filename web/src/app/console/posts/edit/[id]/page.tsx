@@ -37,10 +37,7 @@ export default async function EditPostPage({
     if (!currentUser)
       notFound()
 
-    if (
-      currentUser.role === 'editor'
-      && currentUser.id !== post.author.id
-    ) {
+    if (currentUser.role !== 'admin') {
       notFound()
     }
     return (

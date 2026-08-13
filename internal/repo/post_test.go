@@ -20,6 +20,7 @@ func TestPostLabelsAndHeatCounters(t *testing.T) {
 		&model.Category{},
 		&model.Label{},
 		&model.Post{},
+		&model.PostLike{},
 		&model.Comment{},
 	); err != nil {
 		t.Fatal(err)
@@ -116,6 +117,22 @@ func TestPostLabelsAndHeatCounters(t *testing.T) {
 			counted.CommentCount,
 			counted.Heat,
 		)
+	}
+
+	liked, likeCount, err := TogglePostLike(context.Background(), post.ID, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !liked || likeCount != 1 {
+		t.Fatalf("unexpected like result: liked=%t count=%d", liked, likeCount)
+	}
+
+	liked, likeCount, err = TogglePostLike(context.Background(), post.ID, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if liked || likeCount != 0 {
+		t.Fatalf("unexpected unlike result: liked=%t count=%d", liked, likeCount)
 	}
 
 	rowsAffected, err := DeletePost(context.Background(), post.ID)
