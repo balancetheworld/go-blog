@@ -23,6 +23,7 @@ export default function MainLayout({
           >
             <Link href="/">首页</Link>
             <Link href="/?sort=latest">文章</Link>
+            <Link href="/diary">日记</Link>
           </nav>
           <UserNavigation />
         </div>

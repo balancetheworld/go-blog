@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Providers } from '@/components/providers'
+import 'highlight.js/styles/github-dark.css'
 import './globals.css'
 
 export const metadata: Metadata = {

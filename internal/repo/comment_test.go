@@ -55,7 +55,7 @@ func TestCommentCreateListAndDelete(t *testing.T) {
 	}
 
 	comment := model.Comment{
-		PostID:   post.ID,
+		PostID:   &post.ID,
 		AuthorID: user.ID,
 		Content:  "content",
 	}
@@ -65,9 +65,12 @@ func TestCommentCreateListAndDelete(t *testing.T) {
 
 	comments, total, err := ListComments(
 		context.Background(),
-		post.ID,
-		0,
-		20,
+		CommentListFilter{
+			TargetType: constant.TargetPost,
+			TargetID:   post.ID,
+			Offset:     0,
+			Limit:      20,
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -109,5 +112,81 @@ func TestCommentCreateListAndDelete(t *testing.T) {
 			deletedPost.CommentCount,
 			deletedPost.Heat,
 		)
+	}
+}
+
+func TestCommentMigrationBackfillsLegacyPostTarget(t *testing.T) {
+	type legacyComment struct {
+		gorm.Model
+		PostID   uint   `gorm:"not null;index"`
+		AuthorID uint   `gorm:"not null;index"`
+		Content  string `gorm:"type:text;not null"`
+	}
+
+	database, err := gorm.Open(
+		sqlite.Open("file:comment_migration_test?mode=memory&cache=shared"),
+		&gorm.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.AutoMigrate(&model.Post{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Table("comments").AutoMigrate(&legacyComment{}); err != nil {
+		t.Fatal(err)
+	}
+	page := model.Post{
+		PostBase: model.PostBase{
+			Title: "Legacy Page",
+			Type:  "page",
+			Slug:  "legacy-page",
+		},
+		AuthorID: 8,
+	}
+	if err := database.Create(&page).Error; err != nil {
+		t.Fatal(err)
+	}
+	legacy := legacyComment{
+		PostID:   page.ID,
+		AuthorID: 8,
+		Content:  "legacy comment",
+	}
+	if err := database.Table("comments").Create(&legacy).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	if err := database.AutoMigrate(&model.Comment{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Model(&model.Comment{}).
+		Where("target_id = ? AND post_id > ?", 0, 0).
+		Updates(map[string]any{
+			"target_type": constant.TargetPost,
+			"target_id":   gorm.Expr("post_id"),
+		}).
+		Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Model(&model.Comment{}).
+		Where(
+			"target_type = ? AND target_id IN (?)",
+			constant.TargetPost,
+			database.Model(&model.Post{}).Select("id").Where("type = ?", "page"),
+		).
+		UpdateColumn("target_type", constant.TargetPage).
+		Error; err != nil {
+		t.Fatal(err)
+	}
+
+	var migrated model.Comment
+	if err := database.First(&migrated, legacy.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if migrated.PostID == nil || *migrated.PostID != legacy.PostID {
+		t.Fatalf("unexpected legacy post id: %#v", migrated.PostID)
+	}
+	if migrated.TargetType != constant.TargetPage || migrated.TargetID != legacy.PostID {
+		t.Fatalf("unexpected migrated target: %#v", migrated)
 	}
 }

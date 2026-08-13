@@ -1,11 +1,14 @@
 import type {
   Category,
   CreateCategoryReq,
+  CreateLabelReq,
   CreatePostReq,
+  Label,
   Post,
   PostListRequest,
   PostListResponse,
   UpdateCategoryReq,
+  UpdateLabelReq,
   UpdatePostReq,
 } from '@/models/post'
 import type { Resp } from '@/models/resp'
@@ -90,4 +93,29 @@ export async function updateCategory(
 
 export async function deleteCategory(id: number): Promise<void> {
   await axiosClient.delete(`/post/c/${id}`)
+}
+
+export async function createLabel(req: CreateLabelReq): Promise<Label> {
+  const response = await axiosClient.post<Resp<Label>>(
+    '/post/l',
+    req,
+  )
+
+  return responseData(response.data)
+}
+
+export async function updateLabel(
+  id: number,
+  req: UpdateLabelReq,
+): Promise<Label> {
+  const response = await axiosClient.put<Resp<Label>>(
+    `/post/l/${id}`,
+    req,
+  )
+
+  return responseData(response.data)
+}
+
+export async function deleteLabel(id: number): Promise<void> {
+  await axiosClient.delete(`/post/l/${id}`)
 }

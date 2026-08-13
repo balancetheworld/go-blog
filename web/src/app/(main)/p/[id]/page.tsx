@@ -4,7 +4,7 @@ import {
   getPost,
   PostServerError,
 } from '@/api/post.server'
-import { CommentSection } from '@/components/comment/comment-section'
+import { CommentSection } from '@/components/comment'
 import { BlogPost } from './blog-post'
 
 // 定义页面组件入参的TS接口 PostPageProps
@@ -74,7 +74,11 @@ export default async function PostPage({
   return (
     <>
       <BlogPost post={post} />
-      <CommentSection postID={post.id} postAuthorID={post.author.id} />
+      <CommentSection
+        targetType={post.type === 'page' ? 'page' : 'post'}
+        targetID={post.id}
+        targetAuthorID={post.author.id}
+      />
     </>
   )
 }

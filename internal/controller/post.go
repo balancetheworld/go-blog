@@ -107,6 +107,96 @@ import (
 		resps.Ok(c, resps.Success, labels)
 	}
 
+	func CreateLabel(
+		ctx context.Context,
+		c *app.RequestContext,
+	) {
+		if _, ok := middleware.GetCurrentUserID(c); !ok {
+			resps.Unauthorized(c, resps.ErrUnauthorized)
+			return
+		}
+
+		var req dto.CreateLabelRequest
+		if err := c.BindAndValidate(&req); err != nil {
+			resps.BadRequest(c, resps.ErrParamInvalid)
+			return
+		}
+
+		label, err := service.CreateLabel(
+			ctx,
+			middleware.GetCurrentRole(c),
+			req,
+		)
+		if err != nil {
+			resps.Error(c, err)
+			return
+		}
+
+		resps.Ok(c, resps.Success, label)
+	}
+
+	func UpdateLabel(
+		ctx context.Context,
+		c *app.RequestContext,
+	) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil || id == 0 {
+			resps.BadRequest(c, resps.ErrParamInvalid)
+			return
+		}
+
+		if _, ok := middleware.GetCurrentUserID(c); !ok {
+			resps.Unauthorized(c, resps.ErrUnauthorized)
+			return
+		}
+
+		var req dto.UpdateLabelRequest
+		if err := c.BindAndValidate(&req); err != nil {
+			resps.BadRequest(c, resps.ErrParamInvalid)
+			return
+		}
+
+		label, err := service.UpdateLabel(
+			ctx,
+			uint(id),
+			middleware.GetCurrentRole(c),
+			req,
+		)
+		if err != nil {
+			resps.Error(c, err)
+			return
+		}
+
+		resps.Ok(c, resps.Success, label)
+	}
+
+	func DeleteLabel(
+		ctx context.Context,
+		c *app.RequestContext,
+	) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil || id == 0 {
+			resps.BadRequest(c, resps.ErrParamInvalid)
+			return
+		}
+
+		if _, ok := middleware.GetCurrentUserID(c); !ok {
+			resps.Unauthorized(c, resps.ErrUnauthorized)
+			return
+		}
+
+		if err := service.DeleteLabel(
+			ctx,
+			uint(id),
+			middleware.GetCurrentRole(c),
+		); err != nil {
+			resps.Error(c, err)
+			return
+		}
+
+		resps.Ok(c, resps.Success, nil)
+	}
+
   func CreatePost(
         ctx context.Context,
         c *app.RequestContext,

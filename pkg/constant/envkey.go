@@ -37,4 +37,5 @@ const (
 	EnvKeyRedisAddr                        = "REDIS_ADDR"
 	EnvKeyRedisPassword                    = "REDIS_PASSWORD"
 	EnvKeyRedisDB                          = "REDIS_DB"
+	EnvKeyFileBasePath                     = "FILE_BASEPATH"
 )

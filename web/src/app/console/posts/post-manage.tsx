@@ -13,6 +13,8 @@ import { deletePost } from '@/api/post'
 interface PostManageProps {
   result: PostListResponse
   initialKeyword: string
+  title?: string
+  basePath?: string
 }
 
 // 创建一个**中文、中等长度样式**的全局日期格式化工具，传入 Date 就能直接输出 `2026年8月7日` 格式的中文日期
@@ -23,6 +25,8 @@ const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
 export function PostManage({
   result,
   initialKeyword,
+  title = '文章管理',
+  basePath = '/console/posts',
 }: PostManageProps) {
   const router = useRouter()
   const [keyword, setKeyword] = useState(initialKeyword)
@@ -45,7 +49,7 @@ export function PostManage({
 
     // 添加一个查询参数键值对
     params.set('page', '1')
-    router.push(`/console/posts?${params.toString()}`)
+    router.push(`${basePath}?${params.toString()}`)
   }
 
   async function handleDelete() {
@@ -79,7 +83,7 @@ export function PostManage({
       <div className="space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 id="posts-title" className="text-2xl font-semibold">文章管理</h1>
+            <h1 id="posts-title" className="text-2xl font-semibold">{title}</h1>
             <p className="mt-1 text-sm text-neutral-500">
               共
               {' '}

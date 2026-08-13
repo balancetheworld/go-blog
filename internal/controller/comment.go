@@ -64,6 +64,30 @@ func CreateComment(ctx context.Context, c *app.RequestContext) {
 	resps.Ok(c, resps.Success, comment)
 }
 
+func ListCommentReplies(ctx context.Context, c *app.RequestContext) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+
+	viewerID, _ := middleware.GetCurrentUserID(c)
+	viewerRoleID, _ := middleware.GetCurrentRoleID(c)
+	replies, err := service.ListCommentReplies(
+		ctx,
+		uint(id),
+		viewerID,
+		middleware.GetCurrentRole(c),
+		viewerRoleID,
+	)
+	if err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	resps.Ok(c, resps.Success, replies)
+}
+
 func DeleteComment(ctx context.Context, c *app.RequestContext) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {

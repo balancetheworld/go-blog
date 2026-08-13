@@ -20,6 +20,7 @@ func TestPostLabelsAndHeatCounters(t *testing.T) {
 		&model.Category{},
 		&model.Label{},
 		&model.Post{},
+		&model.Comment{},
 	); err != nil {
 		t.Fatal(err)
 	}

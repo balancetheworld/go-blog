@@ -49,4 +49,8 @@ package apiv1
         editor.POST("/c", controller.CreateCategory)
         editor.PUT("/c/:id", controller.UpdateCategory)
         editor.DELETE("/c/:id", controller.DeleteCategory)
+
+		editor.POST("/l", controller.CreateLabel)
+		editor.PUT("/l/:id", controller.UpdateLabel)
+		editor.DELETE("/l/:id", controller.DeleteLabel)
   }

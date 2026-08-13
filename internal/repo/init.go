@@ -108,8 +108,30 @@ func migrate() error {
 		&model.Category{},
 		&model.Label{},
 		&model.Post{},
+		&model.DiaryFolder{},
+		&model.Diary{},
 		&model.Comment{},
 	); err != nil {
+		return err
+	}
+
+	if err := db.Model(&model.Comment{}).
+		Where("target_id = ? AND post_id > ?", 0, 0).
+		Updates(map[string]any{
+			"target_type": constant.TargetPost,
+			"target_id":   gorm.Expr("post_id"),
+		}).
+		Error; err != nil {
+		return err
+	}
+	if err := db.Model(&model.Comment{}).
+		Where(
+			"target_type = ? AND target_id IN (?)",
+			constant.TargetPost,
+			db.Model(&model.Post{}).Select("id").Where("type = ?", "page"),
+		).
+		UpdateColumn("target_type", constant.TargetPage).
+		Error; err != nil {
 		return err
 	}
 

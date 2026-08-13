@@ -1,13 +1,14 @@
 'use client'
 
 import type { User } from '@/models/user'
+import * as Avatar from '@radix-ui/react-avatar'
 import { LogOut, UserRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 
 interface NavUserProps {
-  user: Pick<User, 'username' | 'nickname'>
+  user: Pick<User, 'username' | 'nickname' | 'avatar'>
 }
 
 export function NavUser({
@@ -36,10 +37,19 @@ export function NavUser({
   return (
     <div className="flex items-center gap-3">
       <div className="flex min-w-0 items-center gap-2">
-        <UserRound
-          className="size-4 shrink-0 text-neutral-500"
-          aria-hidden="true"
-        />
+        <Avatar.Root className="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
+          <Avatar.Image
+            src={user.avatar}
+            alt={user.nickname || user.username}
+            className="size-full object-cover"
+          />
+          <Avatar.Fallback delayMs={200}>
+            <UserRound
+              className="size-4 text-neutral-500"
+              aria-hidden="true"
+            />
+          </Avatar.Fallback>
+        </Avatar.Root>
         <span className="max-w-32 truncate text-sm">
           {user.nickname || user.username}
         </span>

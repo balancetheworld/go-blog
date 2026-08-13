@@ -63,6 +63,16 @@ type LabelResponse struct {
 	Slug string `json:"slug"`
 }
 
+type CreateLabelRequest struct {
+	Name string `json:"name" vd:"len($) >= 1 && len($) <= 64"`
+	Slug string `json:"slug" vd:"len($) >= 1 && len($) <= 64"`
+}
+
+type UpdateLabelRequest struct {
+	Name *string `json:"name" vd:"$ == nil || (len($) >= 1 && len($) <= 64)"`
+	Slug *string `json:"slug" vd:"$ == nil || (len($) >= 1 && len($) <= 64)"`
+}
+
 type CreateCategoryRequest struct {
 	Name        string `json:"name" vd:"len($) >= 1 && len($) <= 64"`
 	Slug        string `json:"slug" vd:"len($) >= 1 && len($) <= 64"`

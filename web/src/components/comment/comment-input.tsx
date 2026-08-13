@@ -1,22 +1,33 @@
 'use client'
 
 import type { FormEvent } from 'react'
+import type { CommentTargetType } from '@/models/comment'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { createComment } from '@/api/comment'
 import { useAuth } from '@/contexts/auth-context'
 
 interface CommentInputProps {
-  postID: number
+  targetType: CommentTargetType
+  targetID: number
   onCreated: () => void | Promise<void>
+  onCancel?: () => void
+  replyToName?: string
+  autoFocus?: boolean
 }
 
-export function CommentInput({ postID, onCreated }: CommentInputProps) {
-  const {
-    currentUser,
-    isLoading,
-  } = useAuth()
+export function CommentInput({
+  targetType,
+  targetID,
+  onCreated,
+  onCancel,
+  replyToName,
+  autoFocus = false,
+}: CommentInputProps) {
+  const pathname = usePathname()
+  const { currentUser, isLoading } = useAuth()
   const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -31,63 +42,74 @@ export function CommentInput({ postID, onCreated }: CommentInputProps) {
 
     try {
       await createComment({
-        postId: postID,
+        targetType,
+        targetId: targetID,
         content: value,
       })
       setContent('')
       await onCreated()
-      toast.success('评论已发布')
+      toast.success(replyToName ? '回复已发布' : '评论已发布')
     }
     catch {
-      toast.error('评论发布失败')
+      toast.error(replyToName ? '回复发布失败' : '评论发布失败')
     }
     finally {
       setSubmitting(false)
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-28 border-t border-black/10 py-6 dark:border-white/10" />
-    )
-  }
+  if (isLoading)
+    return <div className="min-h-24" />
+
   if (!currentUser) {
     return (
-      <section className="border-t border-black/10 py-6 dark:border-white/10">
-        <p className="text-neutral-600 dark:text-neutral-400">
+      <div className="border-y border-black/10 py-5 text-sm dark:border-white/10">
+        <span className="text-neutral-600 dark:text-neutral-400">
           登录后可以参与评论。
-        </p>
+        </span>
         <Link
-          href="/auth/login"
-          className="mt-3 inline-block font-medium"
+          href={`/auth/login?next=${encodeURIComponent(pathname)}`}
+          className="ml-2 font-medium"
         >
           前往登录
         </Link>
-      </section>
+      </div>
     )
   }
+
   return (
-    <form onSubmit={handleSubmit} className="py-6">
-      <label htmlFor="comment" className="font-medium">
-        发表评论
+    <form onSubmit={handleSubmit} className="space-y-3 py-5">
+      <label className="block text-sm font-medium">
+        {replyToName ? `回复 ${replyToName}` : '发表评论'}
+        <textarea
+          autoFocus={autoFocus}
+          rows={replyToName ? 3 : 5}
+          required
+          maxLength={2000}
+          value={content}
+          onChange={event => setContent(event.target.value)}
+          className="mt-2 w-full resize-y rounded-md border border-black/20 p-3 font-normal dark:border-white/20"
+        />
       </label>
-      <textarea
-        id="comment"
-        name="comment"
-        rows={5}
-        required
-        maxLength={2000}
-        value={content}
-        onChange={event => setContent(event.target.value)}
-        className="mt-3 w-full resize-y border border-black/20 p-3 dark:border-white/20"
-      />
-      <button
-        type="submit"
-        disabled={submitting || !content.trim()}
-        className="mt-3 min-h-10 rounded-md bg-black px-4 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-      >
-        {submitting ? '提交中' : '提交评论'}
-      </button>
+      <div className="flex justify-end gap-2">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="min-h-9 rounded-md border border-black/15 px-3 text-sm disabled:opacity-50 dark:border-white/15"
+          >
+            取消
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={submitting || !content.trim()}
+          className="min-h-9 rounded-md bg-black px-4 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        >
+          {submitting ? '提交中' : replyToName ? '提交回复' : '提交评论'}
+        </button>
+      </div>
     </form>
   )
 }

@@ -46,6 +46,7 @@ export default async function EditPostPage({
     return (
       <PostEditor
         post={post}
+        currentUserID={currentUser.id}
         categories={categories}
         labels={labels}
         roleOptions={roleOptions}

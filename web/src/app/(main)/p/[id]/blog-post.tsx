@@ -101,7 +101,7 @@ export function BlogPost({ post }: BlogPostProps) {
       </header>
 
       <div
-        className="break-words py-8 leading-8 [&_a]:underline [&_blockquote]:my-6 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_code]:rounded-sm [&_code]:bg-black/5 [&_code]:px-1 [&_h1]:mt-10 [&_h1]:text-3xl [&_h2]:mt-9 [&_h2]:text-2xl [&_h3]:mt-8 [&_h3]:text-xl [&_hr]:my-8 [&_img]:my-8 [&_img]:max-w-full [&_img]:rounded-md [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-5 [&_pre]:my-6 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-black/5 [&_pre]:p-4 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-6 dark:[&_code]:bg-white/10 dark:[&_pre]:bg-white/10"
+        className="break-words py-8 leading-8 [&_a]:underline [&_blockquote]:my-6 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_code]:rounded-sm [&_code]:bg-black/5 [&_code]:px-1 [&_h1]:mt-10 [&_h1]:text-3xl [&_h2]:mt-9 [&_h2]:text-2xl [&_h3]:mt-8 [&_h3]:text-xl [&_hr]:my-8 [&_img]:my-8 [&_img]:max-w-full [&_img]:rounded-md [&_img[data-align=center]]:mx-auto [&_img[data-align=left]]:mr-auto [&_img[data-align=right]]:ml-auto [&_li]:my-1 [&_ol]:my-5 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:my-5 [&_pre]:my-6 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-neutral-900 [&_pre]:p-4 [&_pre]:text-neutral-100 [&_ul]:my-5 [&_ul]:list-disc [&_ul]:pl-6 dark:[&_code]:bg-white/10"
         dangerouslySetInnerHTML={{ __html: content }}
       />
 

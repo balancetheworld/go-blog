@@ -6,6 +6,8 @@ import type {
   LoginResp,
   RegisterReq,
   RegisterResp,
+  UserListRequest,
+  UserListResponse,
   VerifyEmailReq,
 } from '@/models/user'
 import { axiosClient } from '@/lib/api/client'
@@ -63,5 +65,17 @@ export async function requestEmailVerify(req: VerifyEmailReq): Promise<void> {
 export async function getCaptchaConfig(): Promise<CaptchaConfig> {
   const response
     = await axiosClient.get<Resp<CaptchaConfig>>('/user/captcha')
+  return responseData(response.data)
+}
+
+export async function listUsers(
+  req: UserListRequest = {},
+): Promise<UserListResponse> {
+  const response = await axiosClient.get<Resp<UserListResponse>>(
+    '/users',
+    {
+      params: req,
+    },
+  )
   return responseData(response.data)
 }

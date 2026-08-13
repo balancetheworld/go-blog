@@ -10,4 +10,6 @@ func RegisterRoutes(group *route.RouterGroup) {
 	registerRoleRoutes(group)
     registerPostRoutes(group)
 	registerCommentRoutes(group)
+	registerDiaryRoutes(group)
+	registerFileRoutes(group)
 }

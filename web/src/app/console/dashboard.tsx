@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  FilePenLine,
   FileText,
   MessageSquare,
   Users,
@@ -27,6 +28,11 @@ const statistics: Statistic[] = [
     value: '--',
     icon: Users,
   },
+  {
+    label: '草稿总数',
+    value: '--',
+    icon: FilePenLine,
+  },
 ]
 
 export function Dashboard() {
@@ -37,7 +43,7 @@ export function Dashboard() {
           数据概览
         </h1>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {statistics.map(({
             icon: Icon,
             label,

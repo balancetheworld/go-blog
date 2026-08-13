@@ -15,7 +15,10 @@ import (
 func Run() error {
 	// 创建 hertz 服务实例，监听 8888 端口
 	port := utils.Get(constant.EnvKeyPort, "8888")
-	h := server.New(server.WithHostPorts(":" + port))
+	h := server.New(
+		server.WithHostPorts(":"+port),
+		server.WithMaxRequestBodySize(11*1024*1024),
+	)
 	//`Use 所有 HTTP 请求，在进入路由处理函数之前都会先走注册的中间件。
 	//recovery.Recovery() 捕获 handler 中发生的 panic，防止整个服务进程崩溃！
 	h.Use(recovery.Recovery())

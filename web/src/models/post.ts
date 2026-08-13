@@ -135,3 +135,13 @@ export interface UpdateCategoryReq {
   slug?: string
   description?: string
 }
+
+export interface CreateLabelReq {
+  name: string
+  slug: string
+}
+
+export interface UpdateLabelReq {
+  name?: string
+  slug?: string
+}

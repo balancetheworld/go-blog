@@ -84,3 +84,15 @@ export interface CurrentUserResp {
   identity: RoleOption | null
   roleApplication: UserRoleApplication | null
 }
+
+export interface UserListRequest {
+  page?: number
+  pageSize?: number
+}
+
+export interface UserListResponse {
+  items: User[]
+  total: number
+  page: number
+  pageSize: number
+}

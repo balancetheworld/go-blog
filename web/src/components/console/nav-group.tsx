@@ -1,14 +1,8 @@
 'use client'
 
-import type { LucideIcon } from 'lucide-react'
+import type { ConsoleNavItem } from './data'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-
-export interface ConsoleNavItem {
-  title: string
-  href: string
-  icon: LucideIcon
-}
 
 interface NavGroupProps {
   title: string
