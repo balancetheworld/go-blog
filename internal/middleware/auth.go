@@ -156,41 +156,41 @@ func ClearTokenCookies(c *app.RequestContext) {
 
 func UseAuth(block bool) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		 accessClaims, err := utils.ParseAccessToken(readAccessToken(c))
-  if err == nil {
-        valid, sessionErr := repo.IsSessionValidForUser(
-                ctx,
-                accessClaims.SessionID,
-                accessClaims.UserID,
-        )
-        if sessionErr != nil {
-                abortInternalServerError(c)
-                return
-        }
+		accessClaims, err := utils.ParseAccessToken(readAccessToken(c))
+		if err == nil {
+			valid, sessionErr := repo.IsSessionValidForUser(
+				ctx,
+				accessClaims.SessionID,
+				accessClaims.UserID,
+			)
+			if sessionErr != nil {
+				abortInternalServerError(c)
+				return
+			}
 
-        if valid {
-                user, userErr := repo.GetUserByID(
-                        ctx,
-                        uint64(accessClaims.UserID),
-                )
-                if userErr == nil {
+			if valid {
+				user, userErr := repo.GetUserByID(
+					ctx,
+					uint64(accessClaims.UserID),
+				)
+				if userErr == nil {
 					SetCurrentUser(
 						c,
 						user.ID,
 						user.Role,
 						enabledRoleID(user.RoleID, user.CurrentRole),
 						accessClaims.SessionID,
-                        )
-                        c.Next(ctx)
-                        return
-                }
+					)
+					c.Next(ctx)
+					return
+				}
 
-                if !errors.Is(userErr, gorm.ErrRecordNotFound) {
-                        abortInternalServerError(c)
-                        return
-                }
-        }
-  }
+				if !errors.Is(userErr, gorm.ErrRecordNotFound) {
+					abortInternalServerError(c)
+					return
+				}
+			}
+		}
 
 		refreshClaims, err := utils.ParseRefreshToken(
 			string(c.Cookie(RefreshTokenCookieName)),

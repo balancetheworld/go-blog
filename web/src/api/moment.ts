@@ -6,13 +6,7 @@ import type {
 } from '@/models/moment'
 import type { Resp } from '@/models/resp'
 import { axiosClient } from '@/lib/api/client'
-
-function responseData<T>(response: Resp<T>): T {
-  if (response.data === null)
-    throw new Error(response.message)
-
-  return response.data
-}
+import { unwrapResponse } from '@/lib/api/response'
 
 export async function listMoments(
   req: ListMomentsRequest = {},
@@ -22,14 +16,14 @@ export async function listMoments(
     { params: req },
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function createMoment(
   req: CreateMomentRequest,
 ): Promise<Moment> {
   const response = await axiosClient.post<Resp<Moment>>('/moment', req)
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteMoment(id: number): Promise<void> {

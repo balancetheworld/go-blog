@@ -1,5 +1,6 @@
 import type { Resp } from '@/models/resp'
 import { axiosClient } from '@/lib/api/client'
+import { unwrapResponse } from '@/lib/api/response'
 
 export interface UploadedImage {
   url: string
@@ -16,8 +17,5 @@ export async function uploadImage(file: File): Promise<UploadedImage> {
     form,
   )
 
-  if (response.data.data === null)
-    throw new Error(response.data.message)
-
-  return response.data.data
+  return unwrapResponse(response.data)
 }

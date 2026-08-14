@@ -35,3 +35,17 @@ func getRedis() (*redis.Client, error) {
 
 	return redisClient, nil
 }
+
+func CloseRedis() error {
+	if redisClient == nil {
+		return nil
+	}
+
+	client := redisClient
+	redisClient = nil
+	if err := client.Close(); err != nil {
+		return fmt.Errorf("close redis: %w", err)
+	}
+
+	return nil
+}

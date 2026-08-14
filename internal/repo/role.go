@@ -471,33 +471,33 @@ func GetRequestableRoleByID(
 	id uint,
 ) (model.Role, error) {
 	if db == nil {
-                return model.Role{}, errors.New("database is not initialized")
-        } 
+		return model.Role{}, errors.New("database is not initialized")
+	}
 	var role model.Role
-	 err := db.WithContext(ctx).
-                Where(
-                        "id = ? AND enabled = ? AND is_requestable = ?",
-                        id,
-                        true,
-                        true,
-                ).
-                First(&role).
-                Error
-        return role, err
+	err := db.WithContext(ctx).
+		Where(
+			"id = ? AND enabled = ? AND is_requestable = ?",
+			id,
+			true,
+			true,
+		).
+		First(&role).
+		Error
+	return role, err
 }
 
 func ListRequestableRoles(
-        ctx context.Context,
-  ) ([]model.Role, error) {
-        if db == nil {
-                return nil, errors.New("database is not initialized")
-        }
+	ctx context.Context,
+) ([]model.Role, error) {
+	if db == nil {
+		return nil, errors.New("database is not initialized")
+	}
 
-        var roles []model.Role
-        err := db.WithContext(ctx).
-                Where("enabled = ? AND is_requestable = ?", true, true).
-                Order("id ASC").
-                Find(&roles).
-                Error
-        return roles, err
-  }
+	var roles []model.Role
+	err := db.WithContext(ctx).
+		Where("enabled = ? AND is_requestable = ?", true, true).
+		Order("id ASC").
+		Find(&roles).
+		Error
+	return roles, err
+}

@@ -18,6 +18,9 @@ const (
 )
 
 var saveEmailVerifyCodeScript = redis.NewScript(`
+if redis.call("EXISTS", KEYS[4]) == 1 then
+    return 0
+end
 if redis.call("EXISTS", KEYS[2]) == 1 then
     return 0
 end
@@ -33,7 +36,7 @@ redis.call("SET", KEYS[2], "1", "EX", ARGV[3])
 return 1
 `)
 
-var verifyEmailVerifyCodeScript = redis.NewScript(`
+var reserveEmailVerifyCodeScript = redis.NewScript(`
 if redis.call("EXISTS", KEYS[3]) == 1 then
     return -1
 end
@@ -42,42 +45,42 @@ if not value then
     return 0
 end
 if value == ARGV[1] then
+    local ttl = redis.call("PTTL", KEYS[1])
+    if ttl <= 0 then
+        return 0
+    end
+    local reserved = redis.call("SET", KEYS[4], ARGV[2], "PX", ttl, "NX")
+    if not reserved then
+        return -1
+    end
     return 1
 end
 local attempts = redis.call("INCR", KEYS[2])
 if attempts == 1 then
-    redis.call("EXPIRE", KEYS[2], ARGV[2])
+    redis.call("EXPIRE", KEYS[2], ARGV[3])
 end
-if attempts >= tonumber(ARGV[3]) then
+if attempts >= tonumber(ARGV[4]) then
     redis.call("DEL", KEYS[1], KEYS[2])
-    redis.call("SET", KEYS[3], "1", "EX", ARGV[4])
+    redis.call("SET", KEYS[3], "1", "EX", ARGV[5])
     return -1
 end
 return 0
 `)
 
-var consumeEmailVerifyCodeScript = redis.NewScript(`
-if redis.call("EXISTS", KEYS[3]) == 1 then
-    return -1
-end
-local value = redis.call("GET", KEYS[1])
-if not value then
+var commitEmailVerifyCodeScript = redis.NewScript(`
+if redis.call("GET", KEYS[4]) ~= ARGV[1] then
     return 0
 end
-if value == ARGV[1] then
-    redis.call("DEL", KEYS[1], KEYS[2])
-    return 1
+redis.call("DEL", KEYS[1], KEYS[2], KEYS[4])
+return 1
+`)
+
+var releaseEmailVerifyCodeScript = redis.NewScript(`
+if redis.call("GET", KEYS[4]) ~= ARGV[1] then
+    return 0
 end
-local attempts = redis.call("INCR", KEYS[2])
-if attempts == 1 then
-    redis.call("EXPIRE", KEYS[2], ARGV[2])
-end
-if attempts >= tonumber(ARGV[3]) then
-    redis.call("DEL", KEYS[1], KEYS[2])
-    redis.call("SET", KEYS[3], "1", "EX", ARGV[4])
-    return -1
-end
-return 0
+redis.call("DEL", KEYS[4])
+return 1
 `)
 
 func SaveEmailVerifyCode(ctx context.Context, email, code, userIP string) (bool, error) {
@@ -93,6 +96,7 @@ func SaveEmailVerifyCode(ctx context.Context, email, code, userIP string) (bool,
 			emailVerifyKey(email),
 			emailVerifyCooldownKey(email),
 			emailVerifyIPKey(userIP),
+			emailVerifyReservationKey(email),
 		},
 		code,
 		int64(emailVerifyTTL/time.Second),
@@ -107,21 +111,23 @@ func SaveEmailVerifyCode(ctx context.Context, email, code, userIP string) (bool,
 	return result == 1, nil
 }
 
-func VerifyEmailCode(ctx context.Context, email, code string) (bool, error) {
+func ReserveEmailVerifyCode(ctx context.Context, email, code, token string) (bool, error) {
 	client, err := getRedis()
 	if err != nil {
 		return false, err
 	}
 
-	result, err := verifyEmailVerifyCodeScript.Run(
+	result, err := reserveEmailVerifyCodeScript.Run(
 		ctx,
 		client,
 		[]string{
 			emailVerifyKey(email),
 			emailVerifyAttemptKey(email),
 			emailVerifyLockKey(email),
+			emailVerifyReservationKey(email),
 		},
 		code,
+		token,
 		int64(emailVerifyTTL/time.Second),
 		emailVerifyMaxTries,
 		int64(emailVerifyLockTTL/time.Second),
@@ -133,24 +139,46 @@ func VerifyEmailCode(ctx context.Context, email, code string) (bool, error) {
 	return result == 1, nil
 }
 
-func ConsumeEmailVerifyCode(ctx context.Context, email, code string) (bool, error) {
+func CommitEmailVerifyCode(ctx context.Context, email, token string) (bool, error) {
 	client, err := getRedis()
 	if err != nil {
 		return false, err
 	}
 
-	result, err := consumeEmailVerifyCodeScript.Run(
+	result, err := commitEmailVerifyCodeScript.Run(
 		ctx,
 		client,
 		[]string{
 			emailVerifyKey(email),
 			emailVerifyAttemptKey(email),
 			emailVerifyLockKey(email),
+			emailVerifyReservationKey(email),
 		},
-		code,
-		int64(emailVerifyTTL/time.Second),
-		emailVerifyMaxTries,
-		int64(emailVerifyLockTTL/time.Second),
+		token,
+	).Int64()
+	if err != nil {
+		return false, err
+	}
+
+	return result == 1, nil
+}
+
+func ReleaseEmailVerifyCode(ctx context.Context, email, token string) (bool, error) {
+	client, err := getRedis()
+	if err != nil {
+		return false, err
+	}
+
+	result, err := releaseEmailVerifyCodeScript.Run(
+		ctx,
+		client,
+		[]string{
+			emailVerifyKey(email),
+			emailVerifyAttemptKey(email),
+			emailVerifyLockKey(email),
+			emailVerifyReservationKey(email),
+		},
+		token,
 	).Int64()
 	if err != nil {
 		return false, err
@@ -173,6 +201,10 @@ func emailVerifyAttemptKey(email string) string {
 
 func emailVerifyLockKey(email string) string {
 	return "email_verify_lock:" + strings.ToLower(strings.TrimSpace(email))
+}
+
+func emailVerifyReservationKey(email string) string {
+	return "email_verify_reservation:" + strings.ToLower(strings.TrimSpace(email))
 }
 
 func emailVerifyIPKey(userIP string) string {

@@ -5,44 +5,10 @@ import type {
   ListDiariesResponse,
   ListDiaryFoldersResponse,
 } from '@/models/diary'
-import type { Resp } from '@/models/resp'
-import process from 'node:process'
-import { snakeToCamelObj } from 'field-conv'
-import { cookies } from 'next/headers'
 import { cache } from 'react'
+import { ServerApiError, serverGet } from '@/lib/api/server'
 
-const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8888'
-
-export class DiaryServerError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'DiaryServerError'
-  }
-}
-
-async function serverGet<T>(path: string): Promise<T> {
-  const cookieStore = await cookies()
-  const response = await fetch(`${backendUrl}/api/v1${path}`, {
-    cache: 'no-store',
-    headers: {
-      cookie: cookieStore.toString(),
-    },
-  })
-  const json = await response.json().catch(() => null)
-  const body = json ? snakeToCamelObj(json) as Resp<T> : null
-
-  if (!response.ok || !body || body.data === null) {
-    throw new DiaryServerError(
-      response.status,
-      body?.message ?? `Request failed: ${response.status}`,
-    )
-  }
-
-  return body.data
-}
+export { ServerApiError as DiaryServerError }
 
 function createDiaryListPath(req: ListDiariesRequest): string {
   const params = new URLSearchParams()

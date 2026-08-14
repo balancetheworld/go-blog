@@ -1,0 +1,91 @@
+/* ---------- 页脚 ---------- */
+.footer {
+  padding: var(--space-3xl) var(--space-lg) var(--space-xl);
+  border-top: 1px solid var(--border);
+  margin-top: calc(var(--space-3xl) + 2rem);
+  position: relative;
+  z-index: 2;
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto var(--space-2xl);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2xl);
+}
+
+.footer-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: var(--space-md);
+}
+
+.footer-bio {
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin-bottom: var(--space-lg);
+  max-width: 500px;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto var(--space-lg);
+  gap: var(--space-md);
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color var(--duration-fast);
+  position: relative;
+}
+
+.footer-link svg {
+  width: 17px;
+  height: 17px;
+}
+
+.footer-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--accent);
+  transition: width var(--duration-normal) var(--ease-out-expo);
+}
+
+.footer-link:hover {
+  color: var(--accent);
+}
+
+.footer-link:hover::after {
+  width: 100%;
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.footer-slogan {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+

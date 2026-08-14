@@ -138,7 +138,7 @@ func TogglePostLike(
 	var likeCount uint64
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Where("post_id = ? AND user_id = ?", postID, userID).
-		Delete(&model.PostLike{})
+			Delete(&model.PostLike{})
 		if result.Error != nil {
 			return result.Error
 		}

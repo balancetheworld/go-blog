@@ -148,39 +148,39 @@ func ApproveRoleApplication(
 	})
 }
 
- func RejectRoleApplication(
-        ctx context.Context,
-        applicationID uint,
-        reviewerID uint,
-        reason string,
-  ) error {
-        if db == nil {
-                return errors.New("database is not initialized")
-        }
+func RejectRoleApplication(
+	ctx context.Context,
+	applicationID uint,
+	reviewerID uint,
+	reason string,
+) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
 
-        return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-                var application model.RoleApplication
-                err := tx.
-                        Clauses(clause.Locking{Strength: "UPDATE"}).
-                        First(&application, applicationID).
-                        Error
-                if err != nil {
-                        return err
-                }
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var application model.RoleApplication
+		err := tx.
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&application, applicationID).
+			Error
+		if err != nil {
+			return err
+		}
 
-                if application.Status != constant.RoleApplicationPending {
-                        return ErrRoleApplicationNotPending
-                }
+		if application.Status != constant.RoleApplicationPending {
+			return ErrRoleApplicationNotPending
+		}
 
-                now := time.Now()
-                return tx.
-                        Model(&application).
-                        Updates(map[string]any{
-                                "status":        constant.RoleApplicationRejected,
-                                "reviewer_id":   reviewerID,
-                                "reviewed_at":   &now,
-                                "reject_reason": reason,
-                        }).
-                        Error
-        })
-  }
+		now := time.Now()
+		return tx.
+			Model(&application).
+			Updates(map[string]any{
+				"status":        constant.RoleApplicationRejected,
+				"reviewer_id":   reviewerID,
+				"reviewed_at":   &now,
+				"reject_reason": reason,
+			}).
+			Error
+	})
+}

@@ -36,10 +36,10 @@ const (
 
 // 业务资源目标类型枚举
 const (
-	TargetPost    TargetType = "post"    // 博客文章
-	TargetPage    TargetType = "page"    // 独立页面
-	TargetComment TargetType = "comment" // 评论
-	TargetDiary   TargetType = "diary"   // 日记
+	TargetPost      TargetType = "post"    // 博客文章
+	TargetPage      TargetType = "page"    // 独立页面
+	TargetComment   TargetType = "comment" // 评论
+	TargetDiary     TargetType = "diary"   // 日记
 	TargetGuestbook TargetType = "guestbook"
 )
 

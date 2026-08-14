@@ -6,18 +6,13 @@ import type {
   LoginResp,
   RegisterReq,
   RegisterResp,
+  ResetPasswordReq,
   UserListRequest,
   UserListResponse,
   VerifyEmailReq,
 } from '@/models/user'
 import { axiosClient } from '@/lib/api/client'
-
-function responseData<T>(response: Resp<T>): T {
-  if (response.data === null)
-    throw new Error(response.message)
-
-  return response.data
-}
+import { unwrapResponse } from '@/lib/api/response'
 
 function captchaHeaders(token?: string) {
   // 如果没有传入验证码token，直接返回空，不附加头部
@@ -36,7 +31,7 @@ export async function login(req: LoginReq): Promise<LoginResp> {
     data,
     { headers: captchaHeaders(captchaToken) },
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function register(req: RegisterReq): Promise<RegisterResp> {
@@ -46,7 +41,7 @@ export async function register(req: RegisterReq): Promise<RegisterResp> {
     data,
     { headers: captchaHeaders(captchaToken) },
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function logout(): Promise<void> {
@@ -55,17 +50,21 @@ export async function logout(): Promise<void> {
 
 export async function getCurrentUser(): Promise<CurrentUserResp> {
   const response = await axiosClient.get<Resp<CurrentUserResp>>('/user/me')
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function requestEmailVerify(req: VerifyEmailReq): Promise<void> {
   await axiosClient.post('/user/email/verify', req)
 }
 
+export async function resetPassword(req: ResetPasswordReq): Promise<void> {
+  await axiosClient.put('/user/password/reset', req)
+}
+
 export async function getCaptchaConfig(): Promise<CaptchaConfig> {
   const response
     = await axiosClient.get<Resp<CaptchaConfig>>('/user/captcha')
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function listUsers(
@@ -77,5 +76,5 @@ export async function listUsers(
       params: req,
     },
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }

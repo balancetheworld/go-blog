@@ -23,6 +23,51 @@ type commentTarget struct {
 	diary      *model.Diary
 }
 
+func toCommentResponse(comment model.Comment) dto.CommentResponse {
+	var parentID *uint64
+	if comment.ParentID != nil {
+		value := uint64(*comment.ParentID)
+		parentID = &value
+	}
+
+	var rootID *uint64
+	if comment.RootID != nil {
+		value := uint64(*comment.RootID)
+		rootID = &value
+	}
+
+	var replyToUser *dto.UserDto
+	if comment.ReplyToUser != nil {
+		value := toUserResponse(*comment.ReplyToUser)
+		replyToUser = &value
+	}
+
+	postID := uint64(0)
+	if comment.PostID != nil {
+		postID = uint64(*comment.PostID)
+	}
+	if comment.TargetType == constant.TargetPost || comment.TargetType == constant.TargetPage {
+		postID = uint64(comment.TargetID)
+	}
+
+	return dto.CommentResponse{
+		ID:          uint64(comment.ID),
+		PostID:      postID,
+		TargetType:  comment.TargetType,
+		TargetID:    uint64(comment.TargetID),
+		ParentID:    parentID,
+		RootID:      rootID,
+		ReplyToUser: replyToUser,
+		Content:     comment.Content,
+		Author:      toUserResponse(comment.Author),
+		Depth:       comment.Depth,
+		ReplyCount:  comment.ReplyCount,
+		LikeCount:   comment.LikeCount,
+		CreatedAt:   comment.CreatedAt,
+		UpdatedAt:   comment.UpdatedAt,
+	}
+}
+
 func ListComments(
 	ctx context.Context,
 	req dto.CommentListRequest,
@@ -114,7 +159,7 @@ func ListCommentReplies(
 
 	items := make([]dto.CommentResponse, 0, len(replies))
 	for _, reply := range replies {
-		items = append(items, reply.ToDto())
+		items = append(items, toCommentResponse(reply))
 	}
 
 	return items, nil
@@ -240,7 +285,7 @@ func CreateComment(
 		)
 	}
 
-	return createdComment.ToDto(), nil
+	return toCommentResponse(createdComment), nil
 }
 
 func DeleteComment(
@@ -466,7 +511,7 @@ func commentListResponse(
 ) dto.CommentListResponse {
 	items := make([]dto.CommentResponse, 0, len(comments))
 	for _, comment := range comments {
-		items = append(items, comment.ToDto())
+		items = append(items, toCommentResponse(comment))
 	}
 
 	return dto.CommentListResponse{

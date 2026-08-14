@@ -53,6 +53,7 @@ func TestGenerateEmailVerifyCode(t *testing.T) {
 }
 
 func TestDisabledCaptcha(t *testing.T) {
+	t.Setenv(constant.EnvKeyMode, string(constant.ModeDev))
 	t.Setenv(constant.EnvKeyCaptchaProvider, string(constant.CaptchaDisable))
 
 	valid, err := VerifyCaptcha(t.Context(), "", "")
@@ -61,5 +62,41 @@ func TestDisabledCaptcha(t *testing.T) {
 	}
 	if !valid {
 		t.Fatal("disabled captcha must allow the request")
+	}
+}
+
+func TestValidateTokenConfig(t *testing.T) {
+	t.Setenv(constant.EnvKeyJWTSecret, "0123456789abcdef0123456789abcdef")
+	t.Setenv(constant.EnvKeyTokenDuration, "3600")
+	t.Setenv(constant.EnvKeyRefreshTokenDuration, "604800")
+	t.Setenv(constant.EnvKeyRefreshTokenDurationWithRemember, "2592000")
+
+	if err := ValidateTokenConfig(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv(constant.EnvKeyTokenDuration, "0")
+	if err := ValidateTokenConfig(); err == nil {
+		t.Fatal("expected zero token duration to be rejected")
+	}
+}
+
+func TestValidateCaptchaConfig(t *testing.T) {
+	t.Setenv(constant.EnvKeyMode, string(constant.ModeProd))
+	t.Setenv(constant.EnvKeyCaptchaProvider, string(constant.CaptchaDisable))
+	if err := ValidateCaptchaConfig(); err == nil {
+		t.Fatal("expected disabled production captcha to be rejected")
+	}
+
+	t.Setenv(constant.EnvKeyCaptchaProvider, string(constant.CaptchaTurnstile))
+	t.Setenv(constant.EnvKeyCaptchaSiteKey, "site-key")
+	t.Setenv(constant.EnvKeyCaptchaSecretKey, "secret-key")
+	if err := ValidateCaptchaConfig(); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv(constant.EnvKeyCaptchaSecretKey, "")
+	if err := ValidateCaptchaConfig(); err == nil {
+		t.Fatal("expected missing captcha secret to be rejected")
 	}
 }

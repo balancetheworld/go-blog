@@ -11,13 +11,7 @@ import type {
 } from '@/models/diary'
 import type { Resp } from '@/models/resp'
 import { axiosClient } from '@/lib/api/client'
-
-function responseData<T>(response: Resp<T>): T {
-  if (response.data === null)
-    throw new Error(response.message)
-
-  return response.data
-}
+import { unwrapResponse } from '@/lib/api/response'
 
 export async function listDiaries(
   req: ListDiariesRequest = {},
@@ -27,21 +21,21 @@ export async function listDiaries(
     { params: req },
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function getDiary(idOrSlug: string | number): Promise<Diary> {
   const response = await axiosClient.get<Resp<Diary>>(
     `/diary/${encodeURIComponent(String(idOrSlug))}`,
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function createDiary(
   req: CreateDiaryRequest,
 ): Promise<Diary> {
   const response = await axiosClient.post<Resp<Diary>>('/diary', req)
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function updateDiary(
@@ -49,7 +43,7 @@ export async function updateDiary(
   req: UpdateDiaryRequest,
 ): Promise<Diary> {
   const response = await axiosClient.put<Resp<Diary>>(`/diary/${id}`, req)
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteDiary(id: number): Promise<void> {
@@ -61,7 +55,7 @@ export async function listDiaryFolders(all = false): Promise<DiaryFolder[]> {
     '/diary/folders',
     { params: all ? { all: true } : undefined },
   )
-  return responseData(response.data).items
+  return unwrapResponse(response.data).items
 }
 
 export async function createDiaryFolder(
@@ -71,7 +65,7 @@ export async function createDiaryFolder(
     '/diary/folders',
     req,
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function updateDiaryFolder(
@@ -82,7 +76,7 @@ export async function updateDiaryFolder(
     `/diary/folders/${id}`,
     req,
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteDiaryFolder(id: number): Promise<void> {

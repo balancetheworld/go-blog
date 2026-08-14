@@ -47,6 +47,8 @@ interface PostEditorSnapshot {
   draft: PostEditorDraft
 }
 
+const snapshotMaxAge = 30 * 24 * 60 * 60 * 1000
+
 function createInitialDraft(post?: Post): PostEditorDraft {
   return {
     title: post?.title ?? '',
@@ -65,14 +67,27 @@ function createInitialDraft(post?: Post): PostEditorDraft {
 function readSnapshot(value: string): PostEditorSnapshot | null {
   try {
     const snapshot = JSON.parse(value) as Partial<PostEditorSnapshot>
+    const savedAt = typeof snapshot.savedAt === 'string'
+      ? new Date(snapshot.savedAt).getTime()
+      : Number.NaN
     if (
       snapshot.version !== 1
-      || typeof snapshot.savedAt !== 'string'
+      || !Number.isFinite(savedAt)
+      || savedAt > Date.now()
+      || Date.now() - savedAt > snapshotMaxAge
       || !snapshot.draft
       || typeof snapshot.draft.title !== 'string'
+      || typeof snapshot.draft.description !== 'string'
+      || typeof snapshot.draft.cover !== 'string'
+      || typeof snapshot.draft.type !== 'string'
+      || typeof snapshot.draft.categoryId !== 'string'
       || typeof snapshot.draft.content !== 'string'
       || !Array.isArray(snapshot.draft.labelIds)
+      || !snapshot.draft.labelIds.every(id => Number.isSafeInteger(id) && id > 0)
+      || !['public', 'roles', 'private'].includes(snapshot.draft.visibility)
       || !Array.isArray(snapshot.draft.visibleRoleIds)
+      || !snapshot.draft.visibleRoleIds.every(id => Number.isSafeInteger(id) && id > 0)
+      || typeof snapshot.draft.top !== 'boolean'
     ) {
       return null
     }
@@ -81,6 +96,14 @@ function readSnapshot(value: string): PostEditorSnapshot | null {
   }
   catch {
     return null
+  }
+}
+
+function removeSnapshot(storageKey: string) {
+  try {
+    localStorage.removeItem(storageKey)
+  }
+  catch {
   }
 }
 
@@ -120,7 +143,14 @@ export function PostEditor({
   roleOptionsRef.current = roleOptions
 
   useEffect(() => {
-    const storedValue = localStorage.getItem(storageKey)
+    let storedValue: string | null
+    try {
+      storedValue = localStorage.getItem(storageKey)
+    }
+    catch {
+      setAutoSaveReady(true)
+      return
+    }
     if (!storedValue) {
       setAutoSaveReady(true)
       return
@@ -128,7 +158,7 @@ export function PostEditor({
 
     const snapshot = readSnapshot(storedValue)
     if (!snapshot) {
-      localStorage.removeItem(storageKey)
+      removeSnapshot(storageKey)
       setAutoSaveReady(true)
       return
     }
@@ -142,7 +172,7 @@ export function PostEditor({
       || localSavedAt <= serverUpdatedAt
       || JSON.stringify(snapshot.draft) === savedDraftRef.current
     ) {
-      localStorage.removeItem(storageKey)
+      removeSnapshot(storageKey)
       setAutoSaveReady(true)
       return
     }
@@ -163,7 +193,7 @@ export function PostEditor({
 
     const serializedDraft = JSON.stringify(draft)
     if (serializedDraft === savedDraftRef.current) {
-      localStorage.removeItem(storageKey)
+      removeSnapshot(storageKey)
       return
     }
 
@@ -305,7 +335,7 @@ export function PostEditor({
       const savedDraft = createInitialDraft(savedPost)
       savedDraftRef.current = JSON.stringify(savedDraft)
       draftRef.current = savedDraft
-      localStorage.removeItem(storageKey)
+      removeSnapshot(storageKey)
       setDraft(savedDraft)
       setAutoSaveMessage(publish ? t('publishedMessage') : t('savedToDrafts'))
       toast.success(publish ? t('publishedMessage') : t('draftSaved'))

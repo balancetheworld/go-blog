@@ -14,18 +14,13 @@ import type {
 } from '@/models/post'
 import type { Resp } from '@/models/resp'
 import { axiosClient } from '@/lib/api/client'
-
-function responseData<T>(response: Resp<T>): T {
-  if (response.data === null)
-    throw new Error(response.message)
-  return response.data
-}
+import { unwrapResponse } from '@/lib/api/response'
 
 export async function getPost(slugOrID: string): Promise<Post> {
   const response = await axiosClient.get<Resp<Post>>(
     `/post/p/${encodeURIComponent(slugOrID)}`,
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function listPosts(req: PostListRequest = {}): Promise<PostListResponse> {
@@ -35,7 +30,7 @@ export async function listPosts(req: PostListRequest = {}): Promise<PostListResp
       params: req,
     },
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function getRandomPost(): Promise<Post> {
@@ -43,7 +38,7 @@ export async function getRandomPost(): Promise<Post> {
     '/post/random',
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function createPost(req: CreatePostReq): Promise<Post> {
@@ -51,7 +46,7 @@ export async function createPost(req: CreatePostReq): Promise<Post> {
     '/post/p',
     req,
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function updatePost(
@@ -62,7 +57,7 @@ export async function updatePost(
     `/post/p/${id}`,
     req,
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deletePost(id: number): Promise<void> {
@@ -74,7 +69,7 @@ export async function togglePostLike(id: number): Promise<PostLikeResponse> {
     `/post/p/${id}/like`,
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function createCategory(
@@ -85,7 +80,7 @@ export async function createCategory(
     req,
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function updateCategory(
@@ -97,7 +92,7 @@ export async function updateCategory(
     req,
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteCategory(id: number): Promise<void> {
@@ -110,7 +105,7 @@ export async function createLabel(req: CreateLabelReq): Promise<Label> {
     req,
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function updateLabel(
@@ -122,7 +117,7 @@ export async function updateLabel(
     req,
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteLabel(id: number): Promise<void> {

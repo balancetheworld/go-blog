@@ -82,7 +82,7 @@ type UserRegisterReq struct {
 }
 
 type VerifyEmailReq struct {
-	Email string `json:"email" vd:"email($)"`
+	Email  string `json:"email" vd:"email($)"`
 	UserIP string `json:"-"`
 }
 
@@ -118,7 +118,7 @@ type UserRoleApplicationResponse struct {
 type LoginUserResponse struct {
 	User            *UserResponse                `json:"user"`
 	Role            constant.Role                `json:"role"`
-	Identity        *RoleOptionResponse           `json:"identity"`
+	Identity        *RoleOptionResponse          `json:"identity"`
 	RoleApplication *UserRoleApplicationResponse `json:"role_application"`
 }
 

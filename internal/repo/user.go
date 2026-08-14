@@ -9,7 +9,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func RegisterUserWithSession(ctx context.Context, user *model.User, session *model.Session, requestedRoleID *uint) error {
+func RegisterUserWithSession(
+	ctx context.Context,
+	user *model.User,
+	session *model.Session,
+	requestedRoleID *uint,
+	beforeCommit func() error,
+) error {
 	if db == nil {
 		return errors.New("database is not initialized")
 	}
@@ -20,26 +26,26 @@ func RegisterUserWithSession(ctx context.Context, user *model.User, session *mod
 
 		var requestedRole *model.Role
 
-		  if requestedRoleID != nil {
-                        var role model.Role
-                        err := tx.
-                                Where(
-                                        "id = ? AND enabled = ? AND is_requestable = ?",
-                                        *requestedRoleID,
-                                        true,
-                                        true,
-                                ).
-                                First(&role).
-                                Error
-                        if errors.Is(err, gorm.ErrRecordNotFound) {
-                                return ErrRoleNotRequestable
-                        }
-                        if err != nil {
-                                return err
-                        }
+		if requestedRoleID != nil {
+			var role model.Role
+			err := tx.
+				Where(
+					"id = ? AND enabled = ? AND is_requestable = ?",
+					*requestedRoleID,
+					true,
+					true,
+				).
+				First(&role).
+				Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrRoleNotRequestable
+			}
+			if err != nil {
+				return err
+			}
 
-                        requestedRole = &role
-                }
+			requestedRole = &role
+		}
 
 		var currentRole model.Role
 		if err := tx.
@@ -59,22 +65,28 @@ func RegisterUserWithSession(ctx context.Context, user *model.User, session *mod
 		session.UserID = user.ID
 
 		if err := tx.Create(session).Error; err != nil {
-                        return err
-                }
+			return err
+		}
 
-                if requestedRole != nil {
-                        application := model.RoleApplication{
-                                UserID:          user.ID,
-                                RequestedRoleID: requestedRole.ID,
-                                Status:          constant.RoleApplicationPending,
-                        }
+		if requestedRole != nil {
+			application := model.RoleApplication{
+				UserID:          user.ID,
+				RequestedRoleID: requestedRole.ID,
+				Status:          constant.RoleApplicationPending,
+			}
 
-                        if err := tx.Create(&application).Error; err != nil {
-                                return err
-                        }
-                }
+			if err := tx.Create(&application).Error; err != nil {
+				return err
+			}
+		}
 
-                return nil
+		if beforeCommit != nil {
+			if err := beforeCommit(); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 }
 

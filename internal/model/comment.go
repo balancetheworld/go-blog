@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/zyj/my-blog/internal/dto"
 	"github.com/zyj/my-blog/pkg/constant"
 	"gorm.io/gorm"
 )
@@ -32,49 +31,4 @@ func (c *Comment) BeforeCreate(_ *gorm.DB) error {
 	}
 
 	return nil
-}
-
-func (c Comment) ToDto() dto.CommentResponse {
-	var parentID *uint64
-	if c.ParentID != nil {
-		value := uint64(*c.ParentID)
-		parentID = &value
-	}
-
-	var rootID *uint64
-	if c.RootID != nil {
-		value := uint64(*c.RootID)
-		rootID = &value
-	}
-
-	var replyToUser *dto.UserDto
-	if c.ReplyToUser != nil {
-		value := c.ReplyToUser.ToDto()
-		replyToUser = &value
-	}
-
-	postID := uint64(0)
-	if c.PostID != nil {
-		postID = uint64(*c.PostID)
-	}
-	if c.TargetType == constant.TargetPost || c.TargetType == constant.TargetPage {
-		postID = uint64(c.TargetID)
-	}
-
-	return dto.CommentResponse{
-		ID:          uint64(c.ID),
-		PostID:      postID,
-		TargetType:  c.TargetType,
-		TargetID:    uint64(c.TargetID),
-		ParentID:    parentID,
-		RootID:      rootID,
-		ReplyToUser: replyToUser,
-		Content:     c.Content,
-		Author:      c.Author.ToDto(),
-		Depth:       c.Depth,
-		ReplyCount:  c.ReplyCount,
-		LikeCount:   c.LikeCount,
-		CreatedAt:   c.CreatedAt,
-		UpdatedAt:   c.UpdatedAt,
-	}
 }

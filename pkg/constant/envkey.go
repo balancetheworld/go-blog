@@ -4,6 +4,8 @@ package constant
 
 const (
 	EnvKeyPort                             = "PORT"
+	EnvKeyShutdownTimeout                  = "SHUTDOWN_TIMEOUT_SECONDS"
+	EnvKeyTrustedProxyCIDRs                = "TRUSTED_PROXY_CIDRS"
 	EnvKeyDBDriver                         = "DB_DRIVER"
 	EnvKeyJWTSecret                        = "JWT_SECRET"
 	EnvKeyTokenDuration                    = "TOKEN_DURATION"

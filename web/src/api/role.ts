@@ -10,19 +10,13 @@ import type {
   UpdateRoleReq,
 } from '@/models/role'
 import { axiosClient } from '@/lib/api/client'
-
-function responseData<T>(response: Resp<T>): T {
-  if (response.data === null)
-    throw new Error(response.message)
-
-  return response.data
-}
+import { unwrapResponse } from '@/lib/api/response'
 
 export async function getRequestableRoles(): Promise<RoleOption[]> {
   const response = await axiosClient.get<Resp<RoleOption[]>>(
     '/role/requestable',
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function listRoles(
@@ -34,12 +28,12 @@ export async function listRoles(
       params: req,
     },
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function createRole(req: CreateRoleReq): Promise<Role> {
   const response = await axiosClient.post<Resp<Role>>('/role', req)
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function updateRole(
@@ -47,7 +41,7 @@ export async function updateRole(
   req: UpdateRoleReq,
 ): Promise<Role> {
   const response = await axiosClient.put<Resp<Role>>(`/role/${id}`, req)
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteRole(id: number): Promise<void> {
@@ -63,7 +57,7 @@ export async function listRoleApplications(
       params: req,
     },
   )
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function approveRoleApplication(

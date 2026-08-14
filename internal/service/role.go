@@ -1,43 +1,43 @@
 package service
 
-  import (
-        "context"
-		"errors"
-        "net/http"
-		"regexp"
-		"strings"
+import (
+	"context"
+	"errors"
+	"net/http"
+	"regexp"
+	"strings"
 
-        "github.com/zyj/my-blog/internal/dto"
-		"github.com/zyj/my-blog/internal/model"
-        "github.com/zyj/my-blog/internal/repo"
-		"github.com/zyj/my-blog/pkg/constant"
-        "github.com/zyj/my-blog/pkg/errs"
-		"gorm.io/gorm"
-  )
+	"github.com/zyj/my-blog/internal/dto"
+	"github.com/zyj/my-blog/internal/model"
+	"github.com/zyj/my-blog/internal/repo"
+	"github.com/zyj/my-blog/pkg/constant"
+	"github.com/zyj/my-blog/pkg/errs"
+	"gorm.io/gorm"
+)
 
-  func ListRequestableRoles(
-        ctx context.Context,
-  ) ([]dto.RoleOptionResponse, error) {
-        roles, err := repo.ListRequestableRoles(ctx)
-        if err != nil {
-                return nil, errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "list requestable roles failed",
-                )
-        }
+func ListRequestableRoles(
+	ctx context.Context,
+) ([]dto.RoleOptionResponse, error) {
+	roles, err := repo.ListRequestableRoles(ctx)
+	if err != nil {
+		return nil, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"list requestable roles failed",
+		)
+	}
 
-        items := make([]dto.RoleOptionResponse, 0, len(roles))
-        for _, role := range roles {
-                items = append(items, dto.RoleOptionResponse{
-                        ID:          role.ID,
-                        Code:        role.Code,
-                        Name:        role.Name,
-                        Description: role.Description,
-                })
-        }
+	items := make([]dto.RoleOptionResponse, 0, len(roles))
+	for _, role := range roles {
+		items = append(items, dto.RoleOptionResponse{
+			ID:          role.ID,
+			Code:        role.Code,
+			Name:        role.Name,
+			Description: role.Description,
+		})
+	}
 
-        return items, nil
-  }
+	return items, nil
+}
 
 func ListEnabledRoleOptions(
 	ctx context.Context,
@@ -290,7 +290,7 @@ func DeleteRole(ctx context.Context, id uint) error {
 	return nil
 }
 
-  // ListRoleApplications 获取角色申请列表
+// ListRoleApplications 获取角色申请列表
 // ctx：请求上下文，用于传递超时、取消信号
 // req：前端传入的列表查询请求DTO，包含分页、状态筛选条件
 // 返回：角色申请列表响应DTO、错误信息

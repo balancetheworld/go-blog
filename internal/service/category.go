@@ -1,20 +1,20 @@
 package service
 
-  import (
-        "context"
-        "net/http"
-        "strings"
-		"errors"
-		"gorm.io/gorm"
+import (
+	"context"
+	"errors"
+	"gorm.io/gorm"
+	"net/http"
+	"strings"
 
-        "github.com/zyj/my-blog/internal/dto"
-        "github.com/zyj/my-blog/internal/model"
-        "github.com/zyj/my-blog/internal/repo"
-        "github.com/zyj/my-blog/pkg/constant"
-        "github.com/zyj/my-blog/pkg/errs"
-  )
+	"github.com/zyj/my-blog/internal/dto"
+	"github.com/zyj/my-blog/internal/model"
+	"github.com/zyj/my-blog/internal/repo"
+	"github.com/zyj/my-blog/pkg/constant"
+	"github.com/zyj/my-blog/pkg/errs"
+)
 
-  // ListCategories 查询全部分类列表
+// ListCategories 查询全部分类列表
 // ctx 请求上下文，用于传递链路追踪、超时、日志等信息
 // 返回：分类对外展示DTO切片、错误信息
 func ListCategories(
@@ -118,8 +118,8 @@ func CreateCategory(
 
 	// 组装数据库模型，准备入库
 	category := model.Category{
-		Name:        name,        // 清洗后的分类名称
-		Slug:        slug,        // 标准化后的友好链接标识
+		Name:        name,            // 清洗后的分类名称
+		Slug:        slug,            // 标准化后的友好链接标识
 		Description: req.Description, // 分类描述，前端不传则为空
 	}
 
@@ -137,127 +137,127 @@ func CreateCategory(
 	return *result, nil
 }
 
-  func canManageCategory(role constant.Role) bool {
-        return role == constant.RoleEditor ||
-                role == constant.RoleAdmin
-  }
+func canManageCategory(role constant.Role) bool {
+	return role == constant.RoleEditor ||
+		role == constant.RoleAdmin
+}
 
-   func UpdateCategory(
-        ctx context.Context,
-        id uint,
-        role constant.Role,
-        req dto.UpdateCategoryRequest,
-  ) (dto.CategoryResponse, error) {
-        if !canManageCategory(role) {
-                return dto.CategoryResponse{}, errs.NewForbidden(
-                        http.StatusForbidden,
-                        "update category access denied",
-                )
-        }
+func UpdateCategory(
+	ctx context.Context,
+	id uint,
+	role constant.Role,
+	req dto.UpdateCategoryRequest,
+) (dto.CategoryResponse, error) {
+	if !canManageCategory(role) {
+		return dto.CategoryResponse{}, errs.NewForbidden(
+			http.StatusForbidden,
+			"update category access denied",
+		)
+	}
 
-        category, err := repo.GetCategoryByID(ctx, id)
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-                return dto.CategoryResponse{}, errs.NewNotFound(
-                        http.StatusNotFound,
-                        "category not found",
-                )
-        }
-        if err != nil {
-                return dto.CategoryResponse{}, errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "get category failed",
-                )
-        }
+	category, err := repo.GetCategoryByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.CategoryResponse{}, errs.NewNotFound(
+			http.StatusNotFound,
+			"category not found",
+		)
+	}
+	if err != nil {
+		return dto.CategoryResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get category failed",
+		)
+	}
 
-        name := category.Name
-        if req.Name != nil {
-                name = strings.TrimSpace(*req.Name)
-                if name == "" {
-                        return dto.CategoryResponse{}, errs.NewBadRequest(
-                                http.StatusBadRequest,
-                                "category name is required",
-                        )
-                }
-        }
+	name := category.Name
+	if req.Name != nil {
+		name = strings.TrimSpace(*req.Name)
+		if name == "" {
+			return dto.CategoryResponse{}, errs.NewBadRequest(
+				http.StatusBadRequest,
+				"category name is required",
+			)
+		}
+	}
 
-        slug := category.Slug
-        if req.Slug != nil {
-                slugSource := strings.TrimSpace(*req.Slug)
-                if slugSource == "" {
-                        slugSource = name
-                }
+	slug := category.Slug
+	if req.Slug != nil {
+		slugSource := strings.TrimSpace(*req.Slug)
+		if slugSource == "" {
+			slugSource = name
+		}
 
-                slug = normalizePostSlug(slugSource)
-                if slug == "" {
-                        return dto.CategoryResponse{}, errs.NewBadRequest(
-                                http.StatusBadRequest,
-                                "category slug is required",
-                        )
-                }
-        }
+		slug = normalizePostSlug(slugSource)
+		if slug == "" {
+			return dto.CategoryResponse{}, errs.NewBadRequest(
+				http.StatusBadRequest,
+				"category slug is required",
+			)
+		}
+	}
 
-        exists, err := repo.CheckCategoryExists(
-                ctx,
-                name,
-                slug,
-                category.ID,
-        )
-        if err != nil {
-                return dto.CategoryResponse{}, errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "check category failed",
-                )
-        }
-        if exists {
-                return dto.CategoryResponse{}, errs.NewConflict(
-                        http.StatusConflict,
-                        "category name or slug already exists",
-                )
-        }
+	exists, err := repo.CheckCategoryExists(
+		ctx,
+		name,
+		slug,
+		category.ID,
+	)
+	if err != nil {
+		return dto.CategoryResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"check category failed",
+		)
+	}
+	if exists {
+		return dto.CategoryResponse{}, errs.NewConflict(
+			http.StatusConflict,
+			"category name or slug already exists",
+		)
+	}
 
-        category.Name = name
-        category.Slug = slug
+	category.Name = name
+	category.Slug = slug
 
-        if req.Description != nil {
-                category.Description = *req.Description
-        }
+	if req.Description != nil {
+		category.Description = *req.Description
+	}
 
-        if err := repo.UpdateCategory(ctx, &category); err != nil {
-                return dto.CategoryResponse{}, errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "update category failed",
-                )
-        }
+	if err := repo.UpdateCategory(ctx, &category); err != nil {
+		return dto.CategoryResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"update category failed",
+		)
+	}
 
-        result := toCategoryResponse(&category)
-        return *result, nil
-  }
+	result := toCategoryResponse(&category)
+	return *result, nil
+}
 
-  func DeleteCategory(
-        ctx context.Context,
-        id uint,
-        role constant.Role,
-  ) error {
-        if !canManageCategory(role) {
-                return errs.NewForbidden(
-                        http.StatusForbidden,
-                        "delete category access denied",
-                )
-        }
+func DeleteCategory(
+	ctx context.Context,
+	id uint,
+	role constant.Role,
+) error {
+	if !canManageCategory(role) {
+		return errs.NewForbidden(
+			http.StatusForbidden,
+			"delete category access denied",
+		)
+	}
 
-        rowsAffected, err := repo.DeleteCategory(ctx, id)
-        if err != nil {
-                return errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "delete category failed",
-                )
-        }
-        if rowsAffected == 0 {
-                return errs.NewNotFound(
-                        http.StatusNotFound,
-                        "category not found",
-                )
-        }
+	rowsAffected, err := repo.DeleteCategory(ctx, id)
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"delete category failed",
+		)
+	}
+	if rowsAffected == 0 {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"category not found",
+		)
+	}
 
-        return nil
-  }
+	return nil
+}

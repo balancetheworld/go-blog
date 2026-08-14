@@ -16,6 +16,35 @@ var captchaClient = &http.Client{
 	Timeout: 10 * time.Second,
 }
 
+func ValidateCaptchaConfig() error {
+	provider := constant.CaptchaType(
+		Get(
+			constant.EnvKeyCaptchaProvider,
+			string(constant.CaptchaDisable),
+		),
+	)
+	if provider == constant.CaptchaDisable {
+		if constant.Mode(Get(constant.EnvKeyMode, string(constant.ModeDev))) == constant.ModeProd {
+			return errors.New("CAPTCHA_PROVIDER cannot be disable in production")
+		}
+		return nil
+	}
+
+	switch provider {
+	case constant.CaptchaTurnstile, constant.CaptchaRecaptcha, constant.CaptchaHcaptcha:
+	default:
+		return errors.New("unsupported captcha provider")
+	}
+	if strings.TrimSpace(Get(constant.EnvKeyCaptchaSiteKey)) == "" {
+		return errors.New("CAPTCHA_SITE_KEY is required")
+	}
+	if strings.TrimSpace(Get(constant.EnvKeyCaptchaSecretKey)) == "" {
+		return errors.New("CAPTCHA_SECRET_KEY is required")
+	}
+
+	return nil
+}
+
 func VerifyCaptcha(
 	ctx context.Context,
 	token string,

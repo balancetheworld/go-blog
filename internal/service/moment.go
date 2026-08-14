@@ -18,7 +18,7 @@ func momentToResponse(moment model.Moment) dto.MomentResponse {
 	return dto.MomentResponse{
 		ID:        uint64(moment.ID),
 		Content:   moment.Content,
-		Author:    moment.Author.ToDto(),
+		Author:    toUserResponse(moment.Author),
 		CreatedAt: moment.CreatedAt,
 		UpdatedAt: moment.UpdatedAt,
 	}

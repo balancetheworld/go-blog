@@ -64,6 +64,12 @@ export interface VerifyEmailReq {
   email: string
 }
 
+export interface ResetPasswordReq {
+  email: string
+  code: string
+  newPassword: string
+}
+
 export interface CaptchaConfig {
   provider: CaptchaProvider
   siteKey: string

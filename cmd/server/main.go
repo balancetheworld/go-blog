@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/zyj/my-blog/internal/repo"
 	"github.com/zyj/my-blog/internal/router"
@@ -11,11 +12,22 @@ import (
 )
 
 func main() {
+	if err := utils.ValidateTokenConfig(); err != nil {
+		panic(err)
+	}
+	if err := utils.ValidateCaptchaConfig(); err != nil {
+		panic(err)
+	}
 
 	//初始化数据库
 	if err := repo.InitDatabase(); err != nil {
 		panic(err)
 	}
+	defer func() {
+		if err := repo.CloseDatabase(); err != nil {
+			log.Printf("close database failed: %v", err)
+		}
+	}()
 	if err := service.EnsureRootUser(context.Background()); err != nil {
 		panic(err)
 	}
@@ -27,6 +39,11 @@ func main() {
 	if err := repo.InitRedis(context.Background()); err != nil {
 		panic(err)
 	}
+	defer func() {
+		if err := repo.CloseRedis(); err != nil {
+			log.Printf("close redis failed: %v", err)
+		}
+	}()
 	//初始化存储
 	// 作用：系统统一的文件存储入口，用于处理图片、附件、上传文件等资源读写
 

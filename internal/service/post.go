@@ -54,7 +54,7 @@ func GetPostDetail(ctx context.Context, slugOrID string, viewerID uint, role con
 		post.Heat = post.CalculateHeat()
 	}
 
-	result := post.ToDto()
+	result := toPostDetailResponse(post)
 	if viewerID > 0 {
 		liked, err := repo.IsPostLiked(ctx, post.ID, viewerID)
 		if err != nil {
@@ -65,8 +65,6 @@ func GetPostDetail(ctx context.Context, slugOrID string, viewerID uint, role con
 		}
 		result.Liked = liked
 	}
-
-	result.Category = toCategoryResponse(post.Category)
 
 	if canManage {
 		draftContent := post.DraftContent
@@ -89,8 +87,8 @@ func findPost(
 }
 
 func canManagePost(
-	post model.Post,
-	viewerID uint,
+	_ model.Post,
+	_ uint,
 	role constant.Role,
 ) bool {
 	return role == constant.RoleAdmin
@@ -144,6 +142,40 @@ func canViewPost(
 	return false
 }
 
+func toPostDetailResponse(post model.Post) dto.PostDetailResponse {
+	visibility := resolvedPostVisibility(post)
+	status := "published"
+	if post.Content == "" {
+		status = "draft"
+	}
+
+	return dto.PostDetailResponse{
+		ID:           uint64(post.ID),
+		Title:        post.Title,
+		Content:      post.Content,
+		Description:  post.Description,
+		Cover:        post.Cover,
+		Type:         post.Type,
+		Slug:         post.Slug,
+		CategoryID:   post.CategoryID,
+		Category:     toCategoryResponse(post.Category),
+		Labels:       toLabelResponses(post.Labels),
+		Author:       toUserResponse(post.Author),
+		IsPrivate:    visibility == constant.PostVisibilityPrivate,
+		Visibility:   visibility,
+		VisibleRoles: toRoleOptionResponses(post.VisibleRoles),
+		Top:          post.Top,
+		LikeCount:    post.LikeCount,
+		CommentCount: post.CommentCount,
+		ViewCount:    post.ViewCount,
+		Heat:         post.Heat,
+		Status:       status,
+		PublishedAt:  post.PublishedAt,
+		CreatedAt:    post.CreatedAt,
+		UpdatedAt:    post.UpdatedAt,
+	}
+}
+
 func toCategoryResponse(
 	category *model.Category,
 ) *dto.CategoryResponse {
@@ -169,6 +201,29 @@ func toLabelResponse(label model.Label) dto.LabelResponse {
 	}
 }
 
+func toLabelResponses(labels []model.Label) []dto.LabelResponse {
+	result := make([]dto.LabelResponse, 0, len(labels))
+	for _, label := range labels {
+		result = append(result, toLabelResponse(label))
+	}
+
+	return result
+}
+
+func toRoleOptionResponses(roles []model.Role) []dto.RoleOptionResponse {
+	result := make([]dto.RoleOptionResponse, 0, len(roles))
+	for _, role := range roles {
+		result = append(result, dto.RoleOptionResponse{
+			ID:          role.ID,
+			Code:        role.Code,
+			Name:        role.Name,
+			Description: role.Description,
+		})
+	}
+
+	return result
+}
+
 func ListLabels(ctx context.Context) ([]dto.LabelResponse, error) {
 	labels, err := repo.ListLabels(ctx)
 	if err != nil {
@@ -189,7 +244,39 @@ func ListLabels(ctx context.Context) ([]dto.LabelResponse, error) {
 func toPostListItemResponse(
 	post model.Post,
 ) dto.PostListItemResponse {
-	return post.ToDtoWithShortContent()
+	content := []rune(post.Content)
+	if len(content) > 200 {
+		content = content[:200]
+	}
+	visibility := resolvedPostVisibility(post)
+	status := "published"
+	if post.Content == "" {
+		status = "draft"
+	}
+
+	return dto.PostListItemResponse{
+		ID:           uint64(post.ID),
+		Title:        post.Title,
+		Content:      string(content),
+		Description:  post.Description,
+		Cover:        post.Cover,
+		Type:         post.Type,
+		Slug:         post.Slug,
+		Category:     toCategoryResponse(post.Category),
+		Labels:       toLabelResponses(post.Labels),
+		Author:       toUserResponse(post.Author),
+		IsPrivate:    visibility == constant.PostVisibilityPrivate,
+		Visibility:   visibility,
+		VisibleRoles: toRoleOptionResponses(post.VisibleRoles),
+		Top:          post.Top,
+		LikeCount:    post.LikeCount,
+		CommentCount: post.CommentCount,
+		ViewCount:    post.ViewCount,
+		Heat:         post.Heat,
+		Status:       status,
+		PublishedAt:  post.PublishedAt,
+		CreatedAt:    post.CreatedAt,
+	}
 }
 
 func ListPosts(
@@ -207,17 +294,17 @@ func ListPosts(
 	}
 
 	filter := repo.PostListFilter{
-		Offset:     (req.Page - 1) * req.PageSize,
-		Limit:      req.PageSize,
-		Keyword:    req.Keyword,
-		Type:       req.Type,
-		CategoryID: req.CategoryID,
-		LabelID:    req.LabelID,
-		AuthorID:   req.AuthorID,
-		Status:     "published",
-		Sort:       req.Sort,
-		PublicOnly: true,
-		ViewerID:   viewerID,
+		Offset:       (req.Page - 1) * req.PageSize,
+		Limit:        req.PageSize,
+		Keyword:      req.Keyword,
+		Type:         req.Type,
+		CategoryID:   req.CategoryID,
+		LabelID:      req.LabelID,
+		AuthorID:     req.AuthorID,
+		Status:       "published",
+		Sort:         req.Sort,
+		PublicOnly:   true,
+		ViewerID:     viewerID,
 		ViewerRoleID: viewerRoleID,
 	}
 	if role == constant.RoleAdmin {
@@ -281,7 +368,7 @@ func GetRandomPost(
 		)
 	}
 
-	result := post.ToDto()
+	result := toPostDetailResponse(post)
 	if viewerID > 0 {
 		liked, err := repo.IsPostLiked(ctx, post.ID, viewerID)
 		if err != nil {
@@ -292,8 +379,6 @@ func GetRandomPost(
 		}
 		result.Liked = liked
 	}
-	result.Category = toCategoryResponse(post.Category)
-
 	return result, nil
 }
 
@@ -496,125 +581,124 @@ func resolvePostVisibleRoles(
 }
 
 func CreatePost(
-        ctx context.Context,
-        authorID uint,
-        role constant.Role,
-        req dto.CreatePostRequest,
-  ) (dto.PostDetailResponse, error) {
-        if authorID == 0 || role != constant.RoleAdmin {
-                return dto.PostDetailResponse{}, errs.NewForbidden(
-                        http.StatusForbidden,
-                        "create post access denied",
-                )
-        }
-
-		title := strings.TrimSpace(req.Title)
-        if title == "" {
-                return dto.PostDetailResponse{}, errs.NewBadRequest(
-                        http.StatusBadRequest,
-                        "post title is required",
-                )
-        }
-
-		if err := validatePostCategory(ctx, req.CategoryID); err != nil {
-				return dto.PostDetailResponse{}, err
-		}
-		categoryID := req.CategoryID
-		if categoryID != nil && *categoryID == 0 {
-			categoryID = nil
-		}
-
-		labels, err := resolvePostLabels(ctx, req.LabelIDs)
-		if err != nil {
-			return dto.PostDetailResponse{}, err
-		}
-
-		visibility := req.Visibility
-		if req.IsPrivate {
-			visibility = constant.PostVisibilityPrivate
-		}
-		if visibility == "" {
-			visibility = constant.PostVisibilityPublic
-		}
-		visibleRoles, err := resolvePostVisibleRoles(
-			ctx,
-			visibility,
-			req.VisibleRoleIDs,
+	ctx context.Context,
+	authorID uint,
+	role constant.Role,
+	req dto.CreatePostRequest,
+) (dto.PostDetailResponse, error) {
+	if authorID == 0 || role != constant.RoleAdmin {
+		return dto.PostDetailResponse{}, errs.NewForbidden(
+			http.StatusForbidden,
+			"create post access denied",
 		)
-		if err != nil {
-			return dto.PostDetailResponse{}, err
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		return dto.PostDetailResponse{}, errs.NewBadRequest(
+			http.StatusBadRequest,
+			"post title is required",
+		)
+	}
+
+	if err := validatePostCategory(ctx, req.CategoryID); err != nil {
+		return dto.PostDetailResponse{}, err
+	}
+	categoryID := req.CategoryID
+	if categoryID != nil && *categoryID == 0 {
+		categoryID = nil
+	}
+
+	labels, err := resolvePostLabels(ctx, req.LabelIDs)
+	if err != nil {
+		return dto.PostDetailResponse{}, err
+	}
+
+	visibility := req.Visibility
+	if req.IsPrivate {
+		visibility = constant.PostVisibilityPrivate
+	}
+	if visibility == "" {
+		visibility = constant.PostVisibilityPublic
+	}
+	visibleRoles, err := resolvePostVisibleRoles(
+		ctx,
+		visibility,
+		req.VisibleRoleIDs,
+	)
+	if err != nil {
+		return dto.PostDetailResponse{}, err
+	}
+
+	slug, err := generatePostSlug(ctx, title)
+	if err != nil {
+		return dto.PostDetailResponse{}, err
+	}
+
+	draftContent := req.DraftContent
+	content := ""
+	var publishedAt *time.Time
+	if req.Publish {
+		if strings.TrimSpace(draftContent) == "" {
+			return dto.PostDetailResponse{}, errs.NewBadRequest(
+				http.StatusBadRequest,
+				"published post content is required",
+			)
 		}
+		content = draftContent
+		now := time.Now()
+		publishedAt = &now
+	}
 
-		slug, err := generatePostSlug(ctx, title)
-        if err != nil {
-                return dto.PostDetailResponse{}, err
-        }
+	postType := strings.TrimSpace(req.Type)
+	if postType == "" {
+		postType = "article"
+	}
 
-		draftContent := req.DraftContent
-		content := ""
-		var publishedAt *time.Time
-		if req.Publish {
-                if strings.TrimSpace(draftContent) == "" {
-                        return dto.PostDetailResponse{}, errs.NewBadRequest(
-                                http.StatusBadRequest,
-                                "published post content is required",
-                        )
-                }
-				content = draftContent
-			now := time.Now()
-			publishedAt = &now
-        }
+	post := model.Post{
+		PostBase: model.PostBase{
+			Title:        title,
+			Content:      content,
+			DraftContent: draftContent,
+			Description:  req.Description,
+			Cover:        req.Cover,
+			Type:         postType,
+			Slug:         slug,
+			CategoryID:   categoryID,
+			IsPrivate:    visibility == constant.PostVisibilityPrivate,
+			Visibility:   visibility,
+			Top:          req.Top,
+			PublishedAt:  publishedAt,
+		},
+		AuthorID:     authorID,
+		Labels:       labels,
+		VisibleRoles: visibleRoles,
+	}
 
-        postType := strings.TrimSpace(req.Type)
-        if postType == "" {
-                postType = "article"
-        }
+	if err := repo.CreatePost(ctx, &post); err != nil {
+		return dto.PostDetailResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"create post failed",
+		)
+	}
 
-        post := model.Post{
-                PostBase: model.PostBase{
-                        Title:        title,
-                        Content:      content,
-                        DraftContent: draftContent,
-                        Description:  req.Description,
-                        Cover:        req.Cover,
-                        Type:         postType,
-                        Slug:         slug,
-						CategoryID:   categoryID,
-						IsPrivate:    visibility == constant.PostVisibilityPrivate,
-						Visibility:   visibility,
-						Top:          req.Top,
-						PublishedAt:  publishedAt,
-				},
-				AuthorID: authorID,
-				Labels:   labels,
-				VisibleRoles: visibleRoles,
-		}
+	createdPost, err := repo.GetPostByID(ctx, post.ID)
+	if err != nil {
+		return dto.PostDetailResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get created post failed",
+		)
+	}
 
-        if err := repo.CreatePost(ctx, &post); err != nil {
-                return dto.PostDetailResponse{}, errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "create post failed",
-                )
-        }
+	result := toPostDetailResponse(createdPost)
 
-        createdPost, err := repo.GetPostByID(ctx, post.ID)
-        if err != nil {
-                return dto.PostDetailResponse{}, errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "get created post failed",
-                )
-        }
+	draft := createdPost.DraftContent
+	result.DraftContent = &draft
 
-        result := createdPost.ToDto()
-        result.Category = toCategoryResponse(createdPost.Category)
+	return result, nil
+}
 
-        draft := createdPost.DraftContent
-        result.DraftContent = &draft
-
-        return result, nil
-  }
-
-  // UpdatePost 更新帖子业务逻辑
+// UpdatePost 更新帖子业务逻辑
 // ctx：上下文，传递请求链路信息、超时、日志、trace等
 // id：待修改帖子的数据库主键ID
 // viewerID：当前操作人的用户ID，用于权限校验
@@ -768,16 +852,16 @@ func UpdatePost(
 					"published post content is required",
 				)
 			}
-				// 将草稿内容同步到正式展示的Content字段
-				post.Content = post.DraftContent
-				if post.PublishedAt == nil {
-					now := time.Now()
-					post.PublishedAt = &now
-				}
-			} else {
-				// 取消发布，清空正式展示内容，仅保留草稿
-				post.Content = ""
-				post.PublishedAt = nil
+			// 将草稿内容同步到正式展示的Content字段
+			post.Content = post.DraftContent
+			if post.PublishedAt == nil {
+				now := time.Now()
+				post.PublishedAt = &now
+			}
+		} else {
+			// 取消发布，清空正式展示内容，仅保留草稿
+			post.Content = ""
+			post.PublishedAt = nil
 		}
 	}
 
@@ -800,9 +884,8 @@ func UpdatePost(
 	}
 
 	// 16. 数据库模型转换为对外输出DTO，脱敏、过滤敏感字段
-	result := updatedPost.ToDto()
+	result := toPostDetailResponse(updatedPost)
 	// 拼接分类信息到返回体
-	result.Category = toCategoryResponse(updatedPost.Category)
 
 	// 草稿内容赋值给返回结构体指针字段
 	draft := updatedPost.DraftContent
@@ -812,46 +895,46 @@ func UpdatePost(
 	return result, nil
 }
 
- func DeletePost(
-        ctx context.Context,
-        id uint,
-        viewerID uint,
-        role constant.Role,
-  ) error {
-        post, err := repo.GetPostByID(ctx, id)
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-                return errs.NewNotFound(
-                        http.StatusNotFound,
-                        "post not found",
-                )
-        }
-        if err != nil {
-                return errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "get post failed",
-                )
-        }
+func DeletePost(
+	ctx context.Context,
+	id uint,
+	viewerID uint,
+	role constant.Role,
+) error {
+	post, err := repo.GetPostByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"post not found",
+		)
+	}
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get post failed",
+		)
+	}
 
-        if !canManagePost(post, viewerID, role) {
-                return errs.NewForbidden(
-                        http.StatusForbidden,
-                        "delete post access denied",
-                )
-        }
+	if !canManagePost(post, viewerID, role) {
+		return errs.NewForbidden(
+			http.StatusForbidden,
+			"delete post access denied",
+		)
+	}
 
-        rowsAffected, err := repo.DeletePost(ctx, id)
-        if err != nil {
-                return errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "delete post failed",
-                )
-        }
-        if rowsAffected == 0 {
-                return errs.NewNotFound(
-                        http.StatusNotFound,
-                        "post not found",
-                )
-        }
+	rowsAffected, err := repo.DeletePost(ctx, id)
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"delete post failed",
+		)
+	}
+	if rowsAffected == 0 {
+		return errs.NewNotFound(
+			http.StatusNotFound,
+			"post not found",
+		)
+	}
 
-        return nil
-  }
+	return nil
+}

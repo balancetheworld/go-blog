@@ -87,7 +87,7 @@ export default function LoginPage() {
                 />
                 <span>{t('remember')}</span>
               </label>
-              <Link href="/auth/login" className="auth-link">{t('forgotPassword')}</Link>
+              <Link href="/auth/reset-password" className="auth-link">{t('forgotPassword')}</Link>
             </div>
 
             <Captcha

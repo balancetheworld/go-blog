@@ -7,13 +7,7 @@ import type {
 } from '@/models/comment'
 import type { Resp } from '@/models/resp'
 import { axiosClient } from '@/lib/api/client'
-
-function responseData<T>(response: Resp<T>): T {
-  if (response.data === null)
-    throw new Error(response.message)
-
-  return response.data
-}
+import { unwrapResponse } from '@/lib/api/response'
 
 export async function listComments(
   req: CommentListRequest,
@@ -23,7 +17,7 @@ export async function listComments(
     { params: req },
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function listCommentReplies(id: number): Promise<Comment[]> {
@@ -31,7 +25,7 @@ export async function listCommentReplies(id: number): Promise<Comment[]> {
     `/comment/${id}/replies`,
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function createComment(
@@ -42,7 +36,7 @@ export async function createComment(
     req,
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteComment(id: number): Promise<void> {
@@ -57,7 +51,7 @@ export async function listAdminComments(
     { params: req },
   )
 
-  return responseData(response.data)
+  return unwrapResponse(response.data)
 }
 
 export async function deleteAdminComment(id: number): Promise<void> {

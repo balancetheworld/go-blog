@@ -37,7 +37,7 @@ func GetAsInt(key string, defaultValue int) int {
 	return result
 }
 
-//读取环境变量并转成布尔值；如果为空或转换失败，就返回默认值。
+// 读取环境变量并转成布尔值；如果为空或转换失败，就返回默认值。
 func GetAsBool(key string, defaultValue bool) bool {
 	value := os.Getenv(key)
 	if value == "" {

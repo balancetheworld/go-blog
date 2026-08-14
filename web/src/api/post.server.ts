@@ -12,10 +12,9 @@ import type { RoleOption } from '@/models/role'
 // node内置环境变量对象，读取.env里的后端接口地址
 import process from 'node:process'
 // 工具函数：把后端返回的下划线蛇形命名字段（category_id）转前端驼峰（categoryId）
-import { snakeToCamelObj } from 'field-conv'
 // Next.js 13+ 服务端组件API，获取当前请求携带的Cookie（登录凭证）
-import { cookies } from 'next/headers'
 import { cache } from 'react'
+import { serverGet as sharedServerGet } from '@/lib/api/server'
 
 // 读取环境变量中的后端服务地址，无配置则默认本地8888端口
 const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8888'
@@ -43,49 +42,22 @@ export class PostServerError extends Error {
  * @param path 接口路径，如 /post/list
  * @returns 后端返回的data泛型数据 T
  */
-async function serverGet<T>(path: string): Promise<T> {
+async function serverGet<T>(path: string): Promise<NonNullable<Resp<T>['data']>> {
   // 获取当前页面请求携带的cookie（登录token存放在cookie里，同步传给后端鉴权）
-  const cookieStore = await cookies()
-
   // 发起网络请求，拼接完整后端接口地址
-  const response = await fetch(
-    `${backendUrl}/api/v1${path}`,
-    {
-      // no-store：不启用Next数据缓存，每次请求都实时拉取最新数据（适合后台管理、实时内容）
-      cache: 'no-store',
-      headers: {
-        // 把当前用户cookie完整带给后端，实现登录态鉴权
-        cookie: cookieStore.toString(),
-      },
-    },
-  )
-
+  // no-store：不启用Next数据缓存，每次请求都实时拉取最新数据（适合后台管理、实时内容）
+  // 把当前用户cookie完整带给后端，实现登录态鉴权
   // 解析后端返回json，解析失败赋值null防止报错崩溃
-  const json = await response.json().catch(() => null)
   // 如果解析成功，将后端蛇形字段统一转为前端驼峰格式，强转为标准返回结构Resp<T>
-  const body = json
-    ? snakeToCamelObj(json) as Resp<T>
-    : null
-
   // HTTP状态码非2xx（404/403/500等），抛出自定义业务错误
-  if (!response.ok) {
-    throw new PostServerError(
-      response.status,
-      // 优先使用后端返回的message，无则使用默认提示
-      body?.message ?? `Request failed: ${response.status}`,
-    )
-  }
-
+  // 优先使用后端返回的message，无则使用默认提示
   // 响应体为空 或者 业务数据data为null，抛出异常
-  if (!body || body.data === null) {
-    throw new PostServerError(
-      response.status,
-      body?.message ?? 'Response data is empty',
-    )
-  }
-
   // 校验全部通过，返回后端真实业务数据
-  return body.data
+  return sharedServerGet<NonNullable<Resp<T>['data']>>(
+    path,
+    PostServerError,
+    backendUrl,
+  )
 }
 
 /**

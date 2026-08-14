@@ -32,6 +32,23 @@ func GetDB() *gorm.DB {
 	return db
 }
 
+func CloseDatabase() error {
+	if db == nil {
+		return nil
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("get database connection: %w", err)
+	}
+	db = nil
+	if err := sqlDB.Close(); err != nil {
+		return fmt.Errorf("close database: %w", err)
+	}
+
+	return nil
+}
+
 func loadDBConfig() DBConfig {
 	return DBConfig{
 		Driver:           utils.Get(constant.EnvKeyDBDriver, "sqlite"),

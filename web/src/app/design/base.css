@@ -1,0 +1,309 @@
+/* ---------- 基础重置 ---------- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  transition: background var(--duration-slow) var(--ease-out-quart),
+              color var(--duration-slow) var(--ease-out-quart);
+  position: relative;
+  z-index: 0;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+/* ---------- 主题切换流体过渡 ---------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+}
+
+.theme-ripple {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, 50%) scale(0);
+  transform-origin: center;
+  opacity: 0.7;
+  z-index: 10000;
+  pointer-events: none;
+  box-shadow: 0 0 28px var(--accent-soft);
+  animation: themeRipple 560ms linear forwards;
+}
+
+.theme-ripple::before,
+.theme-ripple::after {
+  content: '';
+  position: absolute;
+  display: none;
+  inset: -1px;
+  border: 1px solid currentColor;
+  border-radius: inherit;
+  opacity: 0.6;
+}
+
+.theme-ripple::before {
+  animation: none;
+}
+
+.theme-ripple::after {
+  animation: none;
+}
+
+.theme-ripple[data-theme="glass"] {
+  color: #00d4ff;
+  border-color: #00d4ff;
+}
+
+.theme-ripple[data-theme="cat"] {
+  color: #00D4E8;
+  border-color: #00D4E8;
+}
+
+@keyframes themeRipple {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 50%) scale(140);
+  }
+}
+
+@keyframes themeRippleEcho {
+  to {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+/* ---------- WebGL 粒子画布 ---------- */
+#particle-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+[data-theme="cat"] #particle-canvas {
+  opacity: 0;
+}
+
+.cat-parallax-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out-quart);
+}
+
+[data-theme="cat"] .cat-parallax-scene {
+  opacity: 1;
+}
+
+.cat-parallax-layer {
+  will-change: transform;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translate3d(0, calc(var(--cat-scroll, 0px) * var(--depth, 1)), 0) rotate(var(--rotate, 0deg));
+}
+
+.cat-parallax-pattern {
+  position: absolute;
+  inset: -18vh -12vw;
+  width: 124vw;
+  height: 136vh;
+  min-width: 1320px;
+  opacity: 0.48;
+}
+
+.doodle {
+  filter: drop-shadow(10px 12px 0 rgba(27, 37, 96, 0.08));
+}
+
+.doodle-cat-blue {
+  --rotate: -6deg;
+}
+
+.doodle-rabbit {
+  --rotate: 4deg;
+}
+
+.doodle-flower {
+  --rotate: -8deg;
+}
+
+.doodle-dog {
+  --rotate: 6deg;
+}
+
+.doodle-apple {
+  --rotate: -8deg;
+}
+
+.doodle-house {
+  --rotate: 2deg;
+}
+
+.doodle-star {
+  --rotate: 1deg;
+}
+
+.doodle-swirl {
+  --rotate: -4deg;
+}
+
+.doodle-sparks {
+  --rotate: 6deg;
+}
+
+.doodle-dots {
+  --rotate: -5deg;
+}
+
+.scroll-orbit {
+  position: fixed;
+  right: 22px;
+  top: 50%;
+  width: 44px;
+  height: min(500px, calc(100vh - 140px));
+  min-height: 260px;
+  z-index: 86;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%);
+}
+
+.scroll-orbit-track {
+  position: absolute;
+  inset: 0;
+  width: 14px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(18, 18, 26, 0.58);
+  box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.06),
+              0 18px 42px rgba(0, 0, 0, 0.26);
+  overflow: visible;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.scroll-orbit-fill {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 2px;
+  height: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 22px var(--accent-soft);
+  transform-origin: top;
+}
+
+.scroll-orbit-thumb {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  margin-left: -20px;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  transform-origin: center;
+}
+
+.scroll-orbit-icon {
+  width: 100%;
+  height: 100%;
+  display: none;
+  overflow: visible;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.22));
+}
+
+.scroll-orbit-icon-star {
+  display: block;
+}
+
+[data-theme="cat"] .scroll-orbit-icon-star {
+  display: none;
+}
+
+[data-theme="cat"] .scroll-orbit-icon-flower {
+  display: block;
+}
+
+[data-theme="cat"] .scroll-orbit-track {
+  width: 16px;
+  border: 2px solid #1B2560;
+  background: rgba(246, 251, 255, 0.86);
+  box-shadow: 6px 6px 0 rgba(0, 212, 232, 0.24);
+}
+
+[data-theme="cat"] .scroll-orbit-fill {
+  left: 3px;
+  right: 3px;
+  top: 3px;
+  background: #00D4E8;
+  box-shadow: none;
+}
+
+[data-theme="cat"] .scroll-orbit-thumb {
+  margin-left: -20px;
+  width: 40px;
+  height: 40px;
+}
+
+[data-theme="cat"] .scroll-orbit-thumb {
+  filter: drop-shadow(5px 5px 0 rgba(27, 37, 96, 0.16));
+}
+
+[data-theme="cat"] .scroll-orbit-icon-star {
+  display: none;
+}
+
+[data-theme="cat"] .scroll-orbit-icon-flower {
+  display: block;
+}
+

@@ -134,7 +134,7 @@ func diaryToResponse(diary model.Diary, includeDraft bool) dto.DiaryResponse {
 		Description:  diary.Description,
 		Cover:        diary.Cover,
 		Content:      diary.Content,
-		Author:       diary.Author.ToDto(),
+		Author:       toUserResponse(diary.Author),
 		Folder:       folder,
 		Visibility:   diary.Visibility,
 		VisibleRoles: visibleRoles,

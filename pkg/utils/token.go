@@ -8,42 +8,45 @@ package utils
 //   - 解析并校验两种 token。
 //   - 判断 token 类型，避免拿 refresh token 当 access token 使用。
 
- import (
-        "crypto/rand"
-        "encoding/base64"
-        "time"
-		"errors"
-		"strconv"
+import (
+	"crypto/rand"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"strconv"
+	"time"
 
-        "github.com/golang-jwt/jwt/v5"
-        "github.com/zyj/my-blog/pkg/constant"
-  )
-
-const (
-	TokenTypeAccess  = "access"   //访问令牌（短时效）作用：调用业务接口用，请求头 Authorization 携带
-	TokenTypeRefresh = "refresh"  //刷新令牌（长时效）
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/zyj/my-blog/pkg/constant"
 )
 
- // TokenClaims JWT令牌载荷结构体，存放加密在Token内的用户、会话、令牌类型信息
- //  `TokenClaims` = JWT 的**载荷载体**
- // JWT 分为三段：Header（加密算法）.Payload（载荷）.Signature（签名）
- // 这个结构体，就是用来定义 `Payload` 里要存哪些业务数据。
- // 当后端签发 token 时，会把这个结构体里所有字段加密打包进 token；
- // 前端每次请求带上 token，后端解密后就能完整读出这套数据。
+const (
+	TokenTypeAccess  = "access"  //访问令牌（短时效）作用：调用业务接口用，请求头 Authorization 携带
+	TokenTypeRefresh = "refresh" //刷新令牌（长时效）
+)
+
+// TokenClaims JWT令牌载荷结构体，存放加密在Token内的用户、会话、令牌类型信息
+//
+//	`TokenClaims` = JWT 的**载荷载体**
+//
+// JWT 分为三段：Header（加密算法）.Payload（载荷）.Signature（签名）
+// 这个结构体，就是用来定义 `Payload` 里要存哪些业务数据。
+// 当后端签发 token 时，会把这个结构体里所有字段加密打包进 token；
+// 前端每次请求带上 token，后端解密后就能完整读出这套数据。
 type TokenClaims struct {
-	UserID    uint          `json:"user_id"` // 当前登录用户ID
-	Role      constant.Role `json:"role"`    // 用户角色，枚举类型：guest/admin等
-	SessionID string        `json:"session_id"` // 关联数据库sessions表的会话唯一ID，用于撤销会话校验
-	TokenType string        `json:"token_type"` // 令牌类型，constant常量：access/refresh，区分访问令牌、刷新令牌
-	jwt.RegisteredClaims // 内嵌JWT官方标准声明，自带过期时间ExpiresAt、签发时间IssuedAt等标准字段
+	UserID               uint          `json:"user_id"`    // 当前登录用户ID
+	Role                 constant.Role `json:"role"`       // 用户角色，枚举类型：guest/admin等
+	SessionID            string        `json:"session_id"` // 关联数据库sessions表的会话唯一ID，用于撤销会话校验
+	TokenType            string        `json:"token_type"` // 令牌类型，constant常量：access/refresh，区分访问令牌、刷新令牌
+	jwt.RegisteredClaims               // 内嵌JWT官方标准声明，自带过期时间ExpiresAt、签发时间IssuedAt等标准字段
 }
 
 // TokenPair 登录成功后返回给前端的双令牌结构体
 type TokenPair struct {
-	AccessToken  string  // 短时效业务访问令牌，前端调用普通接口携带
-	RefreshToken string // 长时效刷新令牌，仅用于过期后换新AccessToken，不可访问业务接口
-	AccessMaxAge int    // AccessToken有效期（单位秒），前端用于本地存储过期倒计时
-	RefreshMaxAge int   // RefreshToken有效期（单位秒）
+	AccessToken   string // 短时效业务访问令牌，前端调用普通接口携带
+	RefreshToken  string // 长时效刷新令牌，仅用于过期后换新AccessToken，不可访问业务接口
+	AccessMaxAge  int    // AccessToken有效期（单位秒），前端用于本地存储过期倒计时
+	RefreshMaxAge int    // RefreshToken有效期（单位秒）
 }
 
 func GenerateSessionID() (string, error) {
@@ -54,12 +57,37 @@ func GenerateSessionID() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(value), nil
 }
 
+func ValidateTokenConfig() error {
+	if _, err := tokenSecret(); err != nil {
+		return err
+	}
+
+	durations := []struct {
+		key          string
+		defaultValue string
+	}{
+		{constant.EnvKeyTokenDuration, "3600"},
+		{constant.EnvKeyRefreshTokenDuration, "604800"},
+		{constant.EnvKeyRefreshTokenDurationWithRemember, "2592000"},
+	}
+	for _, duration := range durations {
+		value, err := strconv.Atoi(Get(duration.key, duration.defaultValue))
+		if err != nil || value <= 0 {
+			return fmt.Errorf("%s must be a positive integer", duration.key)
+		}
+	}
+
+	return nil
+}
+
 // GenerateTokenPair 生成一对双令牌（AccessToken + RefreshToken），登录接口核心方法
 // 参数：
-//   userID: 当前登录用户ID
-//   role: 用户角色 guest/user/editor/admin
-//   sessionID: 本次登录会话唯一ID，关联sessions数据库表
-//   remember: 是否勾选【记住我】，true则刷新令牌延长有效期
+//
+//	userID: 当前登录用户ID
+//	role: 用户角色 guest/user/editor/admin
+//	sessionID: 本次登录会话唯一ID，关联sessions数据库表
+//	remember: 是否勾选【记住我】，true则刷新令牌延长有效期
+//
 // 返回：TokenPair 双令牌结构体 + 生成失败错误
 func GenerateTokenPair(
 	userID uint,
@@ -136,11 +164,13 @@ func ParseRefreshToken(value string) (*TokenClaims, error) {
 
 // generateToken 通用JWT生成工具函数，统一生成access/refresh两种令牌
 // 参数：
-//   userID 用户ID
-//   role 用户角色
-//   sessionID 会话ID
-//   tokenType 令牌类型 access / refresh
-//   maxAge 令牌有效时长（秒）
+//
+//	userID 用户ID
+//	role 用户角色
+//	sessionID 会话ID
+//	tokenType 令牌类型 access / refresh
+//	maxAge 令牌有效时长（秒）
+//
 // 返回：加密后的JWT字符串，生成错误
 func generateToken(
 	userID uint,
@@ -176,8 +206,8 @@ func generateToken(
 		TokenType: tokenType,
 		// 内嵌JWT官方标准注册声明
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   strconv.FormatUint(uint64(userID), 10), // 主题，存入用户ID字符串
-			IssuedAt:  jwt.NewNumericDate(now),                // 签发时间iat
+			Subject:   strconv.FormatUint(uint64(userID), 10),                           // 主题，存入用户ID字符串
+			IssuedAt:  jwt.NewNumericDate(now),                                          // 签发时间iat
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(maxAge) * time.Second)), // 过期时间exp
 		},
 	}
@@ -194,8 +224,10 @@ func generateToken(
 
 // parseToken 通用JWT解析校验核心函数
 // 参数：
-//   value 前端传入的token字符串
-//   tokenType 期望校验的令牌类型 access/refresh
+//
+//	value 前端传入的token字符串
+//	tokenType 期望校验的令牌类型 access/refresh
+//
 // 返回：解析完成的TokenClaims载荷，各类校验失败/解析错误
 func parseToken(
 	value string,

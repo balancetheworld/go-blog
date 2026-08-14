@@ -1,0 +1,73 @@
+/* ---------- 随心记 ---------- */
+.moments-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 760px;
+}
+
+.moment-card {
+  position: relative;
+  padding: 1rem 1.15rem 1.05rem 1.3rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 0;
+  border-left: 2px solid var(--accent);
+  border-radius: 4px 18px 18px 4px;
+  box-shadow: none;
+  transition: background var(--duration-normal) var(--ease-out-quart),
+              border-color var(--duration-normal) var(--ease-out-quart),
+              transform var(--duration-normal) var(--ease-out-quart);
+}
+
+.moment-card + .moment-card {
+  margin-top: var(--space-md);
+}
+
+.moment-card::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 1.15rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.moment-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-hover);
+  transform: translateY(-3px);
+}
+
+.moment-time {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.time-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: none;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.moment-text {
+  font-size: 1rem;
+  line-height: 1.72;
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+

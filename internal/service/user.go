@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
@@ -274,10 +275,10 @@ func DeleteUser(ctx context.Context, id uint64) error {
 // model.User 是数据库模型   dto.UserResp 是前端响应 dto
 func toUserResponse(user model.User) dto.UserResponse {
 	return dto.UserResponse{
-			ID: uint64(user.ID),
+		ID:        uint64(user.ID),
 		Username:  user.Username,
 		Nickname:  user.Nickname,
-			Avatar:    user.AvatarURL,
+		Avatar:    user.AvatarURL,
 		Role:      user.Role,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
@@ -286,9 +287,9 @@ func toUserResponse(user model.User) dto.UserResponse {
 
 func toUserPrivateResponse(user model.User) dto.UserPrivateResponse {
 	return dto.UserPrivateResponse{
-                UserResponse: toUserResponse(user),
-                Email:        user.Email,
-        }
+		UserResponse: toUserResponse(user),
+		Email:        user.Email,
+	}
 }
 
 // userLogin 用户登录业务处理函数（service层核心登录逻辑）
@@ -304,6 +305,19 @@ func UserLogin(ctx context.Context, req *dto.UserLoginReq) (dto.UserAuthResponse
 			"login request is required",
 		)
 	}
+	blocked, err := repo.IsLoginAttemptBlocked(ctx, req.Account, req.UserIP)
+	if err != nil {
+		return dto.UserAuthResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"check login attempts failed",
+		)
+	}
+	if blocked {
+		return dto.UserAuthResponse{}, errs.NewTooManyRequests(
+			http.StatusTooManyRequests,
+			"too many login attempts",
+		)
+	}
 
 	// 2. 根据输入的账号（用户名/邮箱）查询数据库用户
 	user, err := repo.GetUserByUsernameOrEmail(
@@ -312,6 +326,19 @@ func UserLogin(ctx context.Context, req *dto.UserLoginReq) (dto.UserAuthResponse
 	)
 	// 判断错误类型：GORM未查询到用户记录
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		returnLoginFailure, recordErr := repo.RecordLoginFailure(ctx, req.Account, req.UserIP)
+		if recordErr != nil {
+			return dto.UserAuthResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"record login attempt failed",
+			)
+		}
+		if returnLoginFailure {
+			return dto.UserAuthResponse{}, errs.NewTooManyRequests(
+				http.StatusTooManyRequests,
+				"too many login attempts",
+			)
+		}
 		// 返回401未授权，统一提示账号或密码错误（安全，不区分是账号不存在还是密码错）
 		return dto.UserAuthResponse{}, errs.NewUnauthorized(
 			http.StatusUnauthorized,
@@ -334,9 +361,28 @@ func UserLogin(ctx context.Context, req *dto.UserLoginReq) (dto.UserAuthResponse
 	)
 	// 比对失败，密码不正确，返回401
 	if err != nil {
+		returnLoginFailure, recordErr := repo.RecordLoginFailure(ctx, req.Account, req.UserIP)
+		if recordErr != nil {
+			return dto.UserAuthResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"record login attempt failed",
+			)
+		}
+		if returnLoginFailure {
+			return dto.UserAuthResponse{}, errs.NewTooManyRequests(
+				http.StatusTooManyRequests,
+				"too many login attempts",
+			)
+		}
 		return dto.UserAuthResponse{}, errs.NewUnauthorized(
 			http.StatusUnauthorized,
 			"invalid account or password",
+		)
+	}
+	if err := repo.ClearLoginFailures(ctx, req.Account, req.UserIP); err != nil {
+		return dto.UserAuthResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"clear login attempts failed",
 		)
 	}
 
@@ -365,10 +411,10 @@ func UserLogin(ctx context.Context, req *dto.UserLoginReq) (dto.UserAuthResponse
 
 	// 6. 组装数据库会话记录model，存入登录设备信息
 	session := model.Session{
-		UserID:    user.ID,        // 关联登录用户ID
-		SessionID: sessionID,      // 本次会话唯一ID，与JWT内Claims对应
-		UserIP:    req.UserIP,     // 客户端登录IP，用于安全审计
-		UserAgent: req.UserAgent,  // 客户端浏览器/设备标识
+		UserID:    user.ID,       // 关联登录用户ID
+		SessionID: sessionID,     // 本次会话唯一ID，与JWT内Claims对应
+		UserIP:    req.UserIP,    // 客户端登录IP，用于安全审计
+		UserAgent: req.UserAgent, // 客户端浏览器/设备标识
 	}
 
 	// 7. 将会话记录插入sessions数据表，留存登录状态，用于后续撤销、校验会话
@@ -383,13 +429,12 @@ func UserLogin(ctx context.Context, req *dto.UserLoginReq) (dto.UserAuthResponse
 	// toUserPrivateResponse：对数据库用户model脱敏，隐藏密码、敏感字段，只返回展示信息
 	return dto.UserAuthResponse{
 		User:          toUserPrivateResponse(user),
-		AccessToken:   tokens.AccessToken,  // 业务访问短时效令牌
-		RefreshToken:  tokens.RefreshToken, // 刷新长时效令牌
-		AccessMaxAge:  tokens.AccessMaxAge, // Access过期秒数，前端用于cookie过期控制
-		RefreshMaxAge: tokens.RefreshMaxAge,// Refresh过期秒数
+		AccessToken:   tokens.AccessToken,   // 业务访问短时效令牌
+		RefreshToken:  tokens.RefreshToken,  // 刷新长时效令牌
+		AccessMaxAge:  tokens.AccessMaxAge,  // Access过期秒数，前端用于cookie过期控制
+		RefreshMaxAge: tokens.RefreshMaxAge, // Refresh过期秒数
 	}, nil
 }
-
 
 // UserRegister 用户注册业务逻辑（service层注册接口核心函数）
 // ctx：请求上下文，透传给repo做数据库超时控制
@@ -476,14 +521,60 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 		}
 	}
 
+	// 6. 使用bcrypt对明文密码加密，生成密码哈希存入数据库，不存明文密码
+	passwordHash, err := bcrypt.GenerateFromPassword(
+		[]byte(req.Password),
+		bcrypt.DefaultCost, // 默认加密强度
+	)
+	if err != nil {
+		return dto.UserAuthResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"hash password failed",
+		)
+	}
+
+	// 7. 组装用户数据库model，准备写入users表
+	user := model.User{
+		Username:     req.Username,         // 用户名
+		Nickname:     req.Nickname,         // 昵称
+		Email:        req.Email,            // 邮箱
+		PasswordHash: string(passwordHash), // 加密后的密码
+		Role:         constant.RoleUser,    // 用户角色 admin/user
+	}
+
+	// 9. 生成全局唯一会话ID，用于本次登录会话标识
+	sessionID, err := utils.GenerateSessionID()
+	if err != nil {
+		return dto.UserAuthResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"generate session failed",
+		)
+	}
+
+	// 11. 组装会话model，记录登录设备、IP、用户关联信息
+	session := model.Session{
+		SessionID: sessionID,     // 会话唯一标识，与JWT载荷对应
+		UserIP:    req.UserIP,    // 注册客户端IP，安全审计
+		UserAgent: req.UserAgent, // 浏览器/设备信息
+	}
+
+	reservationToken := ""
 	if utils.GetAsBool(
 		constant.EnvKeyEnableEmailVerify,
 		true,
 	) {
-		valid, err := repo.ConsumeEmailVerifyCode(
+		reservationToken, err = utils.GenerateEmailVerifyReservationToken()
+		if err != nil {
+			return dto.UserAuthResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"verify email code failed",
+			)
+		}
+		valid, err := repo.ReserveEmailVerifyCode(
 			ctx,
 			req.Email,
 			req.Code,
+			reservationToken,
 		)
 		if err != nil {
 			return dto.UserAuthResponse{}, errs.NewInternalServer(
@@ -499,53 +590,34 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 		}
 	}
 
-	// 6. 使用bcrypt对明文密码加密，生成密码哈希存入数据库，不存明文密码
-	passwordHash, err := bcrypt.GenerateFromPassword(
-		[]byte(req.Password),
-		bcrypt.DefaultCost, // 默认加密强度
-	)
-	if err != nil {
-		return dto.UserAuthResponse{}, errs.NewInternalServer(
-			http.StatusInternalServerError,
-			"hash password failed",
-		)
-	}
-
-	// 7. 组装用户数据库model，准备写入users表
-	user := model.User{
-		Username:     req.Username,     // 用户名
-		Nickname:     req.Nickname,     // 昵称
-		Email:        req.Email,        // 邮箱
-		PasswordHash: string(passwordHash), // 加密后的密码
-		Role:         constant.RoleUser, // 用户角色 admin/user
-	}
-
-	// 9. 生成全局唯一会话ID，用于本次登录会话标识
-	sessionID, err := utils.GenerateSessionID()
-	if err != nil {
-		return dto.UserAuthResponse{}, errs.NewInternalServer(
-			http.StatusInternalServerError,
-			"generate session failed",
-		)
-	}
-
-	// 11. 组装会话model，记录登录设备、IP、用户关联信息
-	session := model.Session{
-		SessionID: sessionID,      // 会话唯一标识，与JWT载荷对应
-		UserIP:    req.UserIP,     // 注册客户端IP，安全审计
-		UserAgent: req.UserAgent,  // 浏览器/设备信息
-	}
-
 	// 5. 查询数据库总用户数量，用于判断是否是本站第一个注册用户
 	// 角色分配逻辑：第一个注册用户直接授予管理员权限，其余普通用户
 	// 8. repo层执行数据库插入，创建新用户记录
 	// 12. 会话写入sessions数据表，完成自动登录
+	var tokens utils.TokenPair
+	var tokenErr error
 	if err := repo.RegisterUserWithSession(
 		ctx,
 		&user,
 		&session,
 		req.RequestedRoleID,
+		func() error {
+			tokens, tokenErr = utils.GenerateTokenPair(
+				user.ID,
+				user.Role,
+				sessionID,
+				req.Remember,
+			)
+			return tokenErr
+		},
 	); err != nil {
+		releaseEmailVerifyCode(ctx, req.Email, reservationToken)
+		if tokenErr != nil {
+			return dto.UserAuthResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"generate token failed",
+			)
+		}
 		if errors.Is(err, repo.ErrRoleNotRequestable) {
 			return dto.UserAuthResponse{}, errs.NewBadRequest(
 				http.StatusBadRequest,
@@ -558,20 +630,7 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 			"register user failed",
 		)
 	}
-
-	// 10. 根据新用户信息生成Access+Refresh双令牌，自动处理记住我时效
-	tokens, err := utils.GenerateTokenPair(
-		user.ID,
-		user.Role,
-		sessionID,
-		req.Remember,
-	)
-	if err != nil {
-		return dto.UserAuthResponse{}, errs.NewInternalServer(
-			http.StatusInternalServerError,
-			"generate token failed",
-		)
-	}
+	commitEmailVerifyCode(ctx, req.Email, reservationToken)
 
 	// 13. 组装返回给前端的数据：脱敏用户信息 + 双令牌 + 过期时长
 	// toUserPrivateResponse：过滤密码等敏感字段，返回安全用户信息
@@ -710,14 +769,51 @@ func ResetPassword(ctx context.Context, req *dto.ResetPasswordReq) error {
 			"password reset request is required",
 		)
 	}
+	user, err := repo.GetUserByEmail(
+		ctx,
+		req.Email,
+	)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errs.NewUnauthorized(
+			http.StatusUnauthorized,
+			"invalid email or verification code",
+		)
+	}
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get user failed",
+		)
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword(
+		[]byte(req.NewPassword),
+		bcrypt.DefaultCost,
+	)
+	if err != nil {
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"hash password failed",
+		)
+	}
+
+	reservationToken := ""
 	if utils.GetAsBool(
 		constant.EnvKeyEnableEmailVerify,
 		true,
 	) {
-		valid, err := repo.ConsumeEmailVerifyCode(
+		reservationToken, err = utils.GenerateEmailVerifyReservationToken()
+		if err != nil {
+			return errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"verify email code failed",
+			)
+		}
+		valid, err := repo.ReserveEmailVerifyCode(
 			ctx,
 			req.Email,
 			req.Code,
+			reservationToken,
 		)
 		if err != nil {
 			return errs.NewInternalServer(
@@ -732,44 +828,19 @@ func ResetPassword(ctx context.Context, req *dto.ResetPasswordReq) error {
 			)
 		}
 	}
-		 user, err := repo.GetUserByEmail(
-                ctx,
-                req.Email,
-        )
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-                return errs.NewUnauthorized(
-                        http.StatusUnauthorized,
-                        "invalid email or verification code",
-                )
-        }
-        if err != nil {
-                return errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "get user failed",
-                )
-        }
 
-        passwordHash, err := bcrypt.GenerateFromPassword(
-                []byte(req.NewPassword),
-                bcrypt.DefaultCost,
-        )
-        if err != nil {
-                return errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "hash password failed",
-                )
-        }
-
-		if err := repo.UpdatePasswordAndRevokeSessions(
-			ctx,
-			user.ID,
-			string(passwordHash),
-		); err != nil {
-			return errs.NewInternalServer(
-				http.StatusInternalServerError,
-				"reset password failed",
-			)
-		}
+	if err := repo.UpdatePasswordAndRevokeSessions(
+		ctx,
+		user.ID,
+		string(passwordHash),
+	); err != nil {
+		releaseEmailVerifyCode(ctx, req.Email, reservationToken)
+		return errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"reset password failed",
+		)
+	}
+	commitEmailVerifyCode(ctx, req.Email, reservationToken)
 
 	return nil
 }
@@ -820,14 +891,23 @@ func UpdateEmail(
 		)
 	}
 
+	reservationToken := ""
 	if utils.GetAsBool(
 		constant.EnvKeyEnableEmailVerify,
 		true,
 	) {
-		valid, err := repo.ConsumeEmailVerifyCode(
+		reservationToken, err = utils.GenerateEmailVerifyReservationToken()
+		if err != nil {
+			return errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"verify email code failed",
+			)
+		}
+		valid, err := repo.ReserveEmailVerifyCode(
 			ctx,
 			req.Email,
 			req.Code,
+			reservationToken,
 		)
 		if err != nil {
 			return errs.NewInternalServer(
@@ -846,13 +926,37 @@ func UpdateEmail(
 	user.Email = req.Email
 
 	if err := repo.UpdateUser(ctx, &user); err != nil {
+		releaseEmailVerifyCode(ctx, req.Email, reservationToken)
 		return errs.NewInternalServer(
 			http.StatusInternalServerError,
 			"update email failed",
 		)
 	}
+	commitEmailVerifyCode(ctx, req.Email, reservationToken)
 
 	return nil
+}
+
+func commitEmailVerifyCode(ctx context.Context, email, token string) {
+	if token == "" {
+		return
+	}
+
+	committed, err := repo.CommitEmailVerifyCode(context.WithoutCancel(ctx), email, token)
+	if err != nil || !committed {
+		log.Printf("commit email verification code failed")
+	}
+}
+
+func releaseEmailVerifyCode(ctx context.Context, email, token string) {
+	if token == "" {
+		return
+	}
+
+	released, err := repo.ReleaseEmailVerifyCode(context.WithoutCancel(ctx), email, token)
+	if err != nil || !released {
+		log.Printf("release email verification code failed")
+	}
 }
 
 func GetUserByUsername(
