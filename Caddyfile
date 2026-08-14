@@ -1,0 +1,15 @@
+{$DOMAIN} {
+  encode zstd gzip
+
+  handle /api/* {
+    reverse_proxy backend:8888
+  }
+
+  handle /healthz {
+    reverse_proxy backend:8888
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}
