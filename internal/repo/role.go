@@ -164,16 +164,53 @@ func UpdateRole(ctx context.Context, role model.Role) error {
 		return errors.New("database is not initialized")
 	}
 
-	return db.WithContext(ctx).
-		Model(&model.Role{}).
-		Where("id = ?", role.ID).
-		Updates(map[string]any{
-			"name":           role.Name,
-			"description":    role.Description,
-			"is_requestable": role.IsRequestable,
-			"enabled":        role.Enabled,
-		}).
-		Error
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if !role.Enabled {
+			var userIDs []uint
+			if err := tx.Model(&model.User{}).
+				Where("role_id = ? AND is_root = ?", role.ID, false).
+				Pluck("id", &userIDs).
+				Error; err != nil {
+				return err
+			}
+
+			if len(userIDs) > 0 {
+				var memberRole model.Role
+				if err := tx.Where(
+					"code = ? AND enabled = ?",
+					constant.RoleCodeMember,
+					true,
+				).First(&memberRole).Error; err != nil {
+					return err
+				}
+
+				if err := tx.Model(&model.User{}).
+					Where("id IN ?", userIDs).
+					Updates(map[string]any{
+						"role":    constant.RoleUser,
+						"role_id": memberRole.ID,
+					}).Error; err != nil {
+					return err
+				}
+
+				if err := tx.Where("user_id IN ?", userIDs).
+					Delete(&model.Session{}).
+					Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return tx.Model(&model.Role{}).
+			Where("id = ?", role.ID).
+			Updates(map[string]any{
+				"name":           role.Name,
+				"description":    role.Description,
+				"is_requestable": role.IsRequestable,
+				"enabled":        role.Enabled,
+			}).
+			Error
+	})
 }
 
 func CountRoleReferences(

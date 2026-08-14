@@ -34,8 +34,8 @@
   },
   "Home": {
     "articles": {
-      "title": "Technical Articles",
-      "subtitle": "Deep dives · Engineering practice · Source code",
+      "title": "Blog Posts",
+      "subtitle": "Notes, thoughts, and reflections",
       "category": "Article categories",
       "all": "All",
       "allCategories": "All categories",
@@ -60,7 +60,7 @@
       "searchPlaceholder": "Search articles or keywords"
     },
     "diaries": {
-      "title": "Life Diaries",
+      "title": "My Corner",
       "subtitle": "Photos and words preserve moments in time",
       "all": "All",
       "count": "{count} diaries",

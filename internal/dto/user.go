@@ -83,6 +83,7 @@ type UserRegisterReq struct {
 
 type VerifyEmailReq struct {
 	Email string `json:"email" vd:"email($)"`
+	UserIP string `json:"-"`
 }
 
 type UpdatePasswordReq struct {

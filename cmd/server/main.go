@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"github.com/zyj/my-blog/internal/repo"
+	"github.com/zyj/my-blog/internal/router"
 	"github.com/zyj/my-blog/internal/service"
-    "github.com/zyj/my-blog/internal/router"
+	"github.com/zyj/my-blog/pkg/constant"
+	"github.com/zyj/my-blog/pkg/utils"
 )
 
-func main(){
+func main() {
 
 	//初始化数据库
 	if err := repo.InitDatabase(); err != nil {
@@ -17,8 +19,10 @@ func main(){
 	if err := service.EnsureRootUser(context.Background()); err != nil {
 		panic(err)
 	}
-	if err := service.EnsureDemoContent(context.Background()); err != nil {
-		panic(err)
+	if utils.GetAsBool(constant.EnvKeySeedDemoContent, false) {
+		if err := service.EnsureDemoContent(context.Background()); err != nil {
+			panic(err)
+		}
 	}
 	if err := repo.InitRedis(context.Background()); err != nil {
 		panic(err)

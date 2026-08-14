@@ -2,10 +2,11 @@ package repo
 
  import (
         "context"
-        "errors"
+	"errors"
 
-        "github.com/zyj/my-blog/internal/model"
-  )
+	"github.com/zyj/my-blog/internal/model"
+	"gorm.io/gorm"
+)
 
 func CreateSession(ctx context.Context, session *model.Session) error {
 	if db == nil {
@@ -60,12 +61,38 @@ func IsSessionValidForUser(ctx context.Context, sessionID string, userID uint) (
         return session, err
   }
 
-  func RevokeSessionsByUserID(ctx context.Context, userID uint) error {
+func RevokeSessionsByUserID(ctx context.Context, userID uint) error {
 	if db == nil {
 		return errors.New("database is not initialized")
 	}
 	return db.WithContext(ctx).
 			Where("user_id = ?", userID).
 			Delete(&model.Session{}).
+				Error
+}
+
+func UpdatePasswordAndRevokeSessions(
+	ctx context.Context,
+	userID uint,
+	passwordHash string,
+) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&model.User{}).
+			Where("id = ?", userID).
+			Update("password_hash", passwordHash)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		return tx.Where("user_id = ?", userID).
+			Delete(&model.Session{}).
 			Error
-  }
+	})
+}

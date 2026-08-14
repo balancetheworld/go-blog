@@ -253,3 +253,80 @@ func TestSystemRolePolicy(t *testing.T) {
 		t.Fatalf("legacy admin was not demoted: %#v", legacyAdmin)
 	}
 }
+
+func TestDisablingRoleFallsBackUsersAndRevokesSessions(t *testing.T) {
+	database, err := gorm.Open(
+		sqlite.Open("file:disable_role_policy_test?mode=memory&cache=shared"),
+		&gorm.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.AutoMigrate(
+		&model.Role{},
+		&model.User{},
+		&model.Session{},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	previousDB := db
+	db = database
+	t.Cleanup(func() {
+		db = previousDB
+	})
+
+	ctx := context.Background()
+	if err := EnsureSystemRoles(ctx); err != nil {
+		t.Fatal(err)
+	}
+	memberRole, err := GetRoleByCode(ctx, constant.RoleCodeMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	customRole := model.Role{
+		Code:    "verified",
+		Name:    "认证用户",
+		Enabled: true,
+	}
+	if err := CreateRole(ctx, &customRole); err != nil {
+		t.Fatal(err)
+	}
+
+	user := model.User{
+		Username:     "verified-user",
+		Email:        "verified-user@example.com",
+		PasswordHash: "password-hash",
+		Role:         constant.RoleUser,
+		RoleID:       &customRole.ID,
+	}
+	if err := database.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	session := model.Session{
+		UserID:    user.ID,
+		SessionID: "verified-session",
+	}
+	if err := database.Create(&session).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	customRole.Enabled = false
+	if err := UpdateRole(ctx, customRole); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := database.First(&user, user.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if user.Role != constant.RoleUser || user.RoleID == nil || *user.RoleID != memberRole.ID {
+		t.Fatalf("disabled role user was not reset: %#v", user)
+	}
+	valid, err := IsSessionValidForUser(ctx, session.SessionID, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if valid {
+		t.Fatal("disabled role user session must be revoked")
+	}
+}

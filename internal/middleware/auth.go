@@ -8,6 +8,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol"
+	"github.com/zyj/my-blog/internal/model"
 	"github.com/zyj/my-blog/internal/repo"
 	"github.com/zyj/my-blog/pkg/constant"
 	"github.com/zyj/my-blog/pkg/resps"
@@ -51,6 +52,14 @@ func SetCurrentUser(
 	c.Set(currentRoleKey, role)
 	c.Set(currentRoleIDKey, currentRoleID)
 	c.Set(currentSessionIDKey, sessionID)
+}
+
+func enabledRoleID(userRoleID *uint, currentRole model.Role) *uint {
+	if userRoleID == nil || currentRole.ID != *userRoleID || !currentRole.Enabled {
+		return nil
+	}
+
+	return userRoleID
 }
 
 func GetCurrentUserID(
@@ -165,12 +174,12 @@ func UseAuth(block bool) app.HandlerFunc {
                         uint64(accessClaims.UserID),
                 )
                 if userErr == nil {
-                        SetCurrentUser(
-                                c,
-                                user.ID,
-                                user.Role,
-								user.RoleID,
-                                accessClaims.SessionID,
+					SetCurrentUser(
+						c,
+						user.ID,
+						user.Role,
+						enabledRoleID(user.RoleID, user.CurrentRole),
+						accessClaims.SessionID,
                         )
                         c.Next(ctx)
                         return
@@ -225,7 +234,7 @@ func UseAuth(block bool) app.HandlerFunc {
 						c,
 						user.ID,
 						user.Role,
-						user.RoleID,
+						enabledRoleID(user.RoleID, user.CurrentRole),
 						refreshClaims.SessionID,
 					)
 					c.Next(ctx)

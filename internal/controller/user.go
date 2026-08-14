@@ -192,6 +192,7 @@ func VerifyEmail(ctx context.Context, c *app.RequestContext) {
 		resps.BadRequest(c, resps.ErrParamInvalid)
 		return
 	}
+	req.UserIP = c.ClientIP()
 
 	if err := service.RequestVerifyEmail(ctx, &req); err != nil {
 		resps.Error(c, err)
@@ -219,6 +220,7 @@ func ChangePassword(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
+	middleware.ClearTokenCookies(c)
 	resps.Ok(c, resps.Success, nil)
 }
 

@@ -103,7 +103,6 @@ export function HomeExperience({ posts, diaries, moments = [] }: HomeExperienceP
             <span className="title-num">04</span>
             <span className="title-text">{timelineT('title')}</span>
           </h2>
-          <p className="section-sub">{timelineT('subtitle')}</p>
         </div>
         <div className="timeline-list">
           {timelineEntries.map(entry => (

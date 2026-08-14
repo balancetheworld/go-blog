@@ -10,6 +10,7 @@ const (
 	EnvKeyRefreshTokenDuration             = "REFRESH_TOKEN_DURATION"
 	EnvKeyRefreshTokenDurationWithRemember = "REFRESH_TOKEN_DURATION_WITH_REMEMBER"
 	EnvKeyEnableRegister                   = "ENABLE_REGISTER"
+	EnvKeySeedDemoContent                  = "SEED_DEMO_CONTENT"
 	EnvKeyRootAdminUsername                = "ROOT_ADMIN_USERNAME"
 	EnvKeyRootAdminEmail                   = "ROOT_ADMIN_EMAIL"
 	EnvKeyRootAdminPassword                = "ROOT_ADMIN_PASSWORD"

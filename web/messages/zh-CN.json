@@ -34,8 +34,8 @@
   },
   "Home": {
     "articles": {
-      "title": "技术文章",
-      "subtitle": "深度思考 · 工程实践 · 源码走读",
+      "title": "博客文章",
+      "subtitle": "记录、思考、总结",
       "category": "文章分类",
       "all": "全部",
       "allCategories": "全部分类",
@@ -60,7 +60,7 @@
       "searchPlaceholder": "搜索文章或关键词"
     },
     "diaries": {
-      "title": "生活日记",
+      "title": "自留地",
       "subtitle": "快门与文字，都是时间的标本",
       "all": "全部",
       "count": "{count} 篇日记",

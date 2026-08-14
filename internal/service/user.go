@@ -87,7 +87,7 @@ func GetLoginUser(
 		Role: user.Role,
 	}
 
-	if user.CurrentRole.ID > 0 {
+	if user.CurrentRole.ID > 0 && user.CurrentRole.Enabled {
 		result.Identity = &dto.RoleOptionResponse{
 			ID:          user.CurrentRole.ID,
 			Code:        user.CurrentRole.Code,
@@ -602,7 +602,7 @@ func RequestVerifyEmail(
 			"generate email verification code failed",
 		)
 	}
-	saved, err := repo.SaveEmailVerifyCode(ctx, req.Email, code)
+	saved, err := repo.SaveEmailVerifyCode(ctx, req.Email, code, req.UserIP)
 	if err != nil {
 		return errs.NewInternalServer(
 			http.StatusInternalServerError,
@@ -689,9 +689,11 @@ func UpdatePassword(
 		)
 	}
 
-	user.PasswordHash = string(passwordHash)
-
-	if err := repo.UpdateUser(ctx, &user); err != nil {
+	if err := repo.UpdatePasswordAndRevokeSessions(
+		ctx,
+		user.ID,
+		string(passwordHash),
+	); err != nil {
 		return errs.NewInternalServer(
 			http.StatusInternalServerError,
 			"update password failed",
@@ -758,24 +760,16 @@ func ResetPassword(ctx context.Context, req *dto.ResetPasswordReq) error {
                 )
         }
 
-        user.PasswordHash = string(passwordHash)
-
-        if err := repo.UpdateUser(ctx, &user); err != nil {
-                return errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "reset password failed",
-                )
-        }
-
-        if err := repo.RevokeSessionsByUserID(
-                ctx,
-                user.ID,
-        ); err != nil {
-                return errs.NewInternalServer(
-                        http.StatusInternalServerError,
-                        "revoke sessions failed",
-                )
-        }
+		if err := repo.UpdatePasswordAndRevokeSessions(
+			ctx,
+			user.ID,
+			string(passwordHash),
+		); err != nil {
+			return errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"reset password failed",
+			)
+		}
 
 	return nil
 }
