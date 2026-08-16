@@ -238,6 +238,7 @@ export default function RegisterPage() {
             </label>
 
             <Captcha
+              token={captchaToken}
               onTokenChange={setCaptchaToken}
               onRequiredChange={setCaptchaRequired}
             />

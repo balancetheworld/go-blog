@@ -272,7 +272,10 @@
     "captcha": {
       "loadFailed": "人机验证加载失败",
       "loading": "正在加载人机验证",
-      "unavailable": "当前人机验证配置不可用"
+      "unavailable": "当前人机验证配置不可用",
+      "required": "请完成人机验证",
+      "disabled": "开发环境未启用人机验证",
+      "verified": "人机验证已通过"
     },
     "logoutDialog": {
       "title": "确认退出登录？",

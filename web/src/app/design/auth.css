@@ -124,6 +124,37 @@
   text-decoration: none;
 }
 
+.captcha-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.captcha-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.captcha-status.is-verified {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.captcha-status.is-disabled {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
 .auth-submit {
   display: block;
   margin-top: 0;
@@ -148,4 +179,3 @@
   background: transparent;
   color: var(--text-primary);
 }
-

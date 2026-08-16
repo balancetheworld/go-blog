@@ -91,6 +91,7 @@ export default function LoginPage() {
             </div>
 
             <Captcha
+              token={captchaToken}
               onTokenChange={setCaptchaToken}
               onRequiredChange={setCaptchaRequired}
             />
