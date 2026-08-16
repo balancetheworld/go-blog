@@ -28,7 +28,7 @@ services:
       REDIS_PASSWORD: ""
       TRUSTED_PROXY_CIDRS: 172.16.0.0/12
     volumes:
-      - ./data:/app/data
+      - blog_data:/app/data
     depends_on:
       redis:
         condition: service_healthy
@@ -79,3 +79,5 @@ volumes:
   redis_data:
   caddy_data:
   caddy_config:
+  blog_data:
+    name: luna-go-blog-dev-data
