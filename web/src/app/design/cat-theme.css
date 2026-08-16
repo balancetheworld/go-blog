@@ -728,6 +728,20 @@
   box-shadow: 0 18px 40px rgba(0, 212, 232, 0.28);
 }
 
+[data-theme="cat"] .pill-cta-login {
+  background: transparent;
+  color: var(--text-primary);
+  border: 2px solid var(--border);
+  box-shadow: none;
+}
+
+[data-theme="cat"] .pill-cta-login:hover {
+  transform: none;
+  background: rgba(146, 198, 217, 0.16);
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
 [data-theme="cat"] .btn-ghost,
 [data-theme="cat"] .filter-chip,
 [data-theme="cat"] .article-search,
@@ -1459,4 +1473,3 @@
 [data-theme="cat"] .auth-submit-ghost {
   background: #F7D64A;
 }
-
