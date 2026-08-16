@@ -13,6 +13,8 @@ import {
   Bold,
   Heading1,
   Heading2,
+  Heading3,
+  Heading4,
   Highlighter,
   Italic,
   List,
@@ -52,6 +54,8 @@ export function EditorToolbar({
           italic: editor.isActive('italic'),
           heading1: editor.isActive('heading', { level: 1 }),
           heading2: editor.isActive('heading', { level: 2 }),
+          heading3: editor.isActive('heading', { level: 3 }),
+          heading4: editor.isActive('heading', { level: 4 }),
           bulletList: editor.isActive('bulletList'),
           orderedList: editor.isActive('orderedList'),
           blockquote: editor.isActive('blockquote'),
@@ -110,6 +114,22 @@ export function EditorToolbar({
         onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
       >
         <Heading2 className="size-4" aria-hidden="true" />
+      </EditorButton>
+      <EditorButton
+        label={t('heading3')}
+        active={state?.heading3}
+        disabled={!editor || disabled}
+        onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+      >
+        <Heading3 className="size-4" aria-hidden="true" />
+      </EditorButton>
+      <EditorButton
+        label={t('heading4')}
+        active={state?.heading4}
+        disabled={!editor || disabled}
+        onClick={() => editor?.chain().focus().toggleHeading({ level: 4 }).run()}
+      >
+        <Heading4 className="size-4" aria-hidden="true" />
       </EditorButton>
       <EditorButton
         label={t('bulletList')}

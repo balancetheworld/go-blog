@@ -126,7 +126,10 @@
     "like": "Likes",
     "comments": "Comments",
     "likeAction": "Like this article",
-    "unlikeAction": "Unlike this article"
+    "unlikeAction": "Unlike this article",
+    "copyCode": "Copy",
+    "copied": "Copied",
+    "copyCodeFailed": "Copy failed. Copy it manually."
   },
   "Diary": {
     "title": "Life Diaries",
@@ -671,6 +674,8 @@
       "paragraph": "Paragraph",
       "heading1": "Heading 1",
       "heading2": "Heading 2",
+      "heading3": "Heading 3",
+      "heading4": "Heading 4",
       "bold": "Bold",
       "italic": "Italic",
       "strike": "Strikethrough",

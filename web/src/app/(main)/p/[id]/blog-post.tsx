@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import type { Post } from '@/models/post'
+import hljs from 'highlight.js/lib/common'
 import { Heart } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -10,11 +11,42 @@ import { toast } from 'sonner'
 import { togglePostLike } from '@/api/post'
 import { ArticleLikeRive } from '@/components/design/article-like-rive'
 import { useAuth } from '@/contexts/auth-context'
+import { codeLanguageLabels } from '@/lib/code-language'
 import { sanitizePostHTML } from '@/lib/post-html'
 
 interface BlogPostProps {
   post: Post
   children?: ReactNode
+}
+
+function getCodeLanguage(code: HTMLElement): string {
+  const language = Array.from(code.classList)
+    .find(value => value.startsWith('language-'))
+    ?.slice('language-'.length)
+
+  return language ? codeLanguageLabels[language] ?? language : ''
+}
+
+async function copyCode(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return true
+    }
+
+    const input = document.createElement('textarea')
+    input.value = value
+    input.style.position = 'fixed'
+    input.style.opacity = '0'
+    document.body.appendChild(input)
+    input.select()
+    const copied = document.execCommand('copy')
+    input.remove()
+    return copied
+  }
+  catch {
+    return false
+  }
 }
 
 export function BlogPost({ post, children }: BlogPostProps) {
@@ -30,6 +62,7 @@ export function BlogPost({ post, children }: BlogPostProps) {
   const [likeAnimating, setLikeAnimating] = useState(false)
   const likeAnimationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const likeRequestRef = useRef(false)
+  const contentRef = useRef<HTMLDivElement>(null)
   const authorName
     = post.author.nickname || post.author.username
   const content = sanitizePostHTML(post.content)
@@ -40,6 +73,74 @@ export function BlogPost({ post, children }: BlogPostProps) {
         clearTimeout(likeAnimationTimerRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    const element = contentRef.current
+    if (!element)
+      return
+
+    element.querySelectorAll<HTMLPreElement>('pre').forEach((pre) => {
+      if (pre.parentElement?.classList.contains('article-code-block'))
+        return
+
+      const block = pre.querySelector<HTMLElement>('code')
+      if (!block)
+        return
+
+      delete block.dataset.highlighted
+      hljs.highlightElement(block)
+
+      const wrapper = document.createElement('div')
+      wrapper.className = 'article-code-block'
+
+      const toolbar = document.createElement('div')
+      toolbar.className = 'article-code-toolbar'
+
+      const dots = document.createElement('div')
+      dots.className = 'article-code-dots'
+      ;['red', 'yellow', 'green'].forEach((color) => {
+        const dot = document.createElement('span')
+        dot.className = `article-code-dot is-${color}`
+        dots.appendChild(dot)
+      })
+      toolbar.appendChild(dots)
+
+      const language = getCodeLanguage(block)
+      if (language) {
+        const label = document.createElement('span')
+        label.className = 'article-code-language'
+        label.textContent = language
+        toolbar.appendChild(label)
+      }
+
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'article-code-copy'
+      button.textContent = t('copyCode')
+      button.title = t('copyCode')
+      button.addEventListener('click', () => {
+        void copyCode(block.textContent ?? '').then((copied) => {
+          if (!copied) {
+            toast.error(t('copyCodeFailed'))
+            return
+          }
+
+          button.textContent = t('copied')
+          window.setTimeout(() => {
+            button.textContent = t('copyCode')
+          }, 1200)
+        })
+      })
+      toolbar.appendChild(button)
+
+      const parent = pre.parentNode
+      if (!parent)
+        return
+
+      parent.replaceChild(wrapper, pre)
+      wrapper.append(toolbar, pre)
+    })
+  }, [content])
 
   async function handleLike() {
     if (!currentUser) {
@@ -133,6 +234,7 @@ export function BlogPost({ post, children }: BlogPostProps) {
         </header>
 
         <div
+          ref={contentRef}
           className="article-prose"
           dangerouslySetInnerHTML={{ __html: content }}
         />
