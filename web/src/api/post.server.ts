@@ -115,7 +115,7 @@ export const getPost = cache(async (
 ): Promise<Post> => {
   // 对传入的标识做URL编码，防止特殊符号破坏路由
   return serverGet<Post>(
-    `/post/p/${encodeURIComponent(slugOrID)}`,
+    `/post/p/${slugOrID}`,
   )
 })
 
