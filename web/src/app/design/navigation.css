@@ -241,6 +241,19 @@
   box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
 }
 
+.pill-cta-login {
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.pill-cta-login:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: none;
+}
+
 .pill-cta .pill-icon {
   width: 16px;
   height: 16px;
@@ -467,4 +480,3 @@
     left: 12px;
   }
 }
-

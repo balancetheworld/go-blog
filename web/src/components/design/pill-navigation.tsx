@@ -328,7 +328,7 @@ export function PillNavigation() {
                     <>
                       {canAccessConsole
                         ? (
-                            <Link href="/console" className="pill-cta" title={currentUser.nickname || currentUser.username}>
+                            <Link href="/console" className="pill-cta pill-cta-console" title={currentUser.nickname || currentUser.username}>
                               <LayoutDashboard className="pill-icon" aria-hidden="true" />
                               <span>{common('console')}</span>
                             </Link>
@@ -348,7 +348,7 @@ export function PillNavigation() {
                     </>
                   )
                 : (
-                    <Link href="/auth/login" className="pill-cta">
+                    <Link href="/auth/login" className="pill-cta pill-cta-login">
                       <LogIn className="pill-icon" aria-hidden="true" />
                       <span>{common('login')}</span>
                     </Link>

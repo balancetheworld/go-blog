@@ -4,27 +4,7 @@ import type { Editor } from '@tiptap/react'
 import { useTranslations } from 'next-intl'
 import { Braces, Code } from '@/components/tiptap-icons'
 import { EditorButton } from '@/components/tiptap-ui-primitive/editor-button'
-
-const languages = [
-  { label: '', value: '' },
-  { label: 'JavaScript', value: 'javascript' },
-  { label: 'TypeScript', value: 'typescript' },
-  { label: 'JSX', value: 'jsx' },
-  { label: 'TSX', value: 'tsx' },
-  { label: 'Go', value: 'go' },
-  { label: 'Python', value: 'python' },
-  { label: 'Java', value: 'java' },
-  { label: 'C', value: 'c' },
-  { label: 'C++', value: 'cpp' },
-  { label: 'C#', value: 'csharp' },
-  { label: 'Rust', value: 'rust' },
-  { label: 'Bash', value: 'bash' },
-  { label: 'SQL', value: 'sql' },
-  { label: 'JSON', value: 'json' },
-  { label: 'HTML', value: 'xml' },
-  { label: 'CSS', value: 'css' },
-  { label: 'Markdown', value: 'markdown' },
-]
+import { codeLanguages } from '@/lib/code-language'
 
 interface CodeControlsProps {
   editor: Editor | null
@@ -81,7 +61,7 @@ export function CodeControls({
         onChange={event => changeLanguage(event.target.value)}
         className="h-9 max-w-32 rounded-md border border-black/15 bg-transparent px-2 text-xs disabled:opacity-40 dark:border-white/15"
       >
-        {languages.map(item => (
+        {codeLanguages.map(item => (
           <option key={item.value} value={item.value}>{item.value ? item.label : t('autoLanguage')}</option>
         ))}
       </select>

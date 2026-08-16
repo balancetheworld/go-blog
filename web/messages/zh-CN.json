@@ -126,7 +126,10 @@
     "like": "喜欢",
     "comments": "评论",
     "likeAction": "喜欢这篇文章",
-    "unlikeAction": "取消喜欢"
+    "unlikeAction": "取消喜欢",
+    "copyCode": "复制",
+    "copied": "已复制",
+    "copyCodeFailed": "复制失败，请手动复制"
   },
   "Diary": {
     "title": "生活日记",
@@ -671,6 +674,8 @@
       "paragraph": "正文",
       "heading1": "一级标题",
       "heading2": "二级标题",
+      "heading3": "三级标题",
+      "heading4": "四级标题",
       "bold": "加粗",
       "italic": "斜体",
       "strike": "删除线",

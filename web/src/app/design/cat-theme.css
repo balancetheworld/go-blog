@@ -728,6 +728,20 @@
   box-shadow: 0 18px 40px rgba(0, 212, 232, 0.28);
 }
 
+[data-theme="cat"] .pill-cta-login {
+  background: transparent;
+  color: var(--text-primary);
+  border: 2px solid var(--border);
+  box-shadow: none;
+}
+
+[data-theme="cat"] .pill-cta-login:hover {
+  transform: none;
+  background: rgba(146, 198, 217, 0.16);
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
 [data-theme="cat"] .btn-ghost,
 [data-theme="cat"] .filter-chip,
 [data-theme="cat"] .article-search,
@@ -1244,7 +1258,10 @@
 }
 
 [data-theme="cat"] .article-detail-copy h1,
-[data-theme="cat"] .article-prose h2 {
+[data-theme="cat"] .article-prose h1,
+[data-theme="cat"] .article-prose h2,
+[data-theme="cat"] .article-prose h3,
+[data-theme="cat"] .article-prose h4 {
   color: #1B2560;
 }
 
@@ -1323,7 +1340,28 @@
   background: #1B2560;
 }
 
-[data-theme="cat"] .article-prose code {
+[data-theme="cat"] .article-code-block {
+  border-color: #1B2560;
+  background: #1B2560;
+  box-shadow: 5px 5px 0 rgba(27, 37, 96, 0.12);
+}
+
+[data-theme="cat"] .article-code-toolbar {
+  border-color: #1B2560;
+  background: #273576;
+}
+
+[data-theme="cat"] .article-code-copy {
+  border-color: rgba(246, 251, 255, 0.4);
+  background: rgba(246, 251, 255, 0.12);
+  color: #FFFFFF;
+}
+
+[data-theme="cat"] .article-code-copy:hover {
+  background: rgba(246, 251, 255, 0.2);
+}
+
+[data-theme="cat"] .article-prose code:not(.hljs) {
   color: #F7D64A;
 }
 
@@ -1459,4 +1497,3 @@
 [data-theme="cat"] .auth-submit-ghost {
   background: #F7D64A;
 }
-

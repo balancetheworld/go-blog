@@ -75,7 +75,8 @@
 }
 
 .article-prose h1,
-.article-prose h3 {
+.article-prose h3,
+.article-prose h4 {
   margin: var(--space-lg) 0 var(--space-sm);
   font-family: var(--font-display);
 }
@@ -765,9 +766,24 @@
     border-radius: 8px;
   }
 
+  .article-prose h1 {
+    margin-top: 2rem;
+    font-size: 1.6rem;
+  }
+
   .article-prose h2 {
     margin-top: 2rem;
     font-size: 1.4rem;
+  }
+
+  .article-prose h3 {
+    margin-top: 1.5rem;
+    font-size: 1.2rem;
+  }
+
+  .article-prose h4 {
+    margin-top: 1.5rem;
+    font-size: 1.05rem;
   }
 
   .article-prose p,
@@ -783,6 +799,25 @@
   }
 
   .article-prose pre {
+    padding: 14px;
+    font-size: 0.82rem;
+  }
+
+  .article-code-block {
+    border-radius: 8px;
+  }
+
+  .article-code-toolbar {
+    height: 34px;
+    padding: 0 12px;
+  }
+
+  .article-code-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .article-code-block pre {
     padding: 14px;
     font-size: 0.82rem;
   }

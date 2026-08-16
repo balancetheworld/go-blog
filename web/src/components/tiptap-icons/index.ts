@@ -8,6 +8,8 @@ export {
   Code2,
   Heading1,
   Heading2,
+  Heading3,
+  Heading4,
   Highlighter,
   ImagePlus,
   Italic,
