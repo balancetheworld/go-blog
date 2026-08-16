@@ -272,7 +272,10 @@
     "captcha": {
       "loadFailed": "Failed to load captcha",
       "loading": "Loading captcha",
-      "unavailable": "The current captcha configuration is unavailable"
+      "unavailable": "The current captcha configuration is unavailable",
+      "required": "Complete the verification",
+      "disabled": "Human verification is disabled in this environment",
+      "verified": "Verification passed"
     },
     "logoutDialog": {
       "title": "Log out?",
