@@ -14,6 +14,7 @@ import {
   requestEmailVerify,
 } from '@/api/user'
 import { Captcha } from '@/components/auth/captcha'
+import { GithubLoginButton } from '@/components/auth/github-login-button'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function RegisterPage() {
@@ -73,7 +74,7 @@ export default function RegisterPage() {
     setSendingCode(true)
 
     try {
-      await requestEmailVerify({ email })
+      await requestEmailVerify({ email, purpose: 'register' })
       setCodeCooldown(60)
       toast.success(t('codeSent'))
     }
@@ -136,6 +137,8 @@ export default function RegisterPage() {
               <span>{t('title')}</span>
               <small>{t('subtitle')}</small>
             </div>
+            <GithubLoginButton label={t('github')} />
+            <div className="auth-divider"><span>{t('or')}</span></div>
 
             <label className="auth-field" htmlFor="email">
               <span>{t('email')}</span>

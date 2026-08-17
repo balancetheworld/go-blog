@@ -82,8 +82,9 @@ type UserRegisterReq struct {
 }
 
 type VerifyEmailReq struct {
-	Email  string `json:"email" vd:"email($)"`
-	UserIP string `json:"-"`
+	Email   string `json:"email" vd:"email($)"`
+	Purpose string `json:"purpose" vd:"in($, 'register', 'reset_password', 'change_email')"`
+	UserIP  string `json:"-"`
 }
 
 type UpdatePasswordReq struct {

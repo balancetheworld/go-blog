@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -573,6 +574,7 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 		valid, err := repo.ReserveEmailVerifyCode(
 			ctx,
 			req.Email,
+			string(constant.EmailVerifyPurposeRegister),
 			req.Code,
 			reservationToken,
 		)
@@ -588,6 +590,8 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 				"invalid or expired email verification code",
 			)
 		}
+		verifiedAt := time.Now().UTC()
+		user.EmailVerifiedAt = &verifiedAt
 	}
 
 	// 5. 查询数据库总用户数量，用于判断是否是本站第一个注册用户
@@ -611,7 +615,7 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 			return tokenErr
 		},
 	); err != nil {
-		releaseEmailVerifyCode(ctx, req.Email, reservationToken)
+		releaseEmailVerifyCode(ctx, req.Email, string(constant.EmailVerifyPurposeRegister), reservationToken)
 		if tokenErr != nil {
 			return dto.UserAuthResponse{}, errs.NewInternalServer(
 				http.StatusInternalServerError,
@@ -630,7 +634,7 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 			"register user failed",
 		)
 	}
-	commitEmailVerifyCode(ctx, req.Email, reservationToken)
+	commitEmailVerifyCode(ctx, req.Email, string(constant.EmailVerifyPurposeRegister), reservationToken)
 
 	// 13. 组装返回给前端的数据：脱敏用户信息 + 双令牌 + 过期时长
 	// toUserPrivateResponse：过滤密码等敏感字段，返回安全用户信息
@@ -661,7 +665,7 @@ func RequestVerifyEmail(
 			"generate email verification code failed",
 		)
 	}
-	saved, err := repo.SaveEmailVerifyCode(ctx, req.Email, code, req.UserIP)
+	saved, err := repo.SaveEmailVerifyCode(ctx, req.Email, req.Purpose, code, req.UserIP)
 	if err != nil {
 		return errs.NewInternalServer(
 			http.StatusInternalServerError,
@@ -812,6 +816,7 @@ func ResetPassword(ctx context.Context, req *dto.ResetPasswordReq) error {
 		valid, err := repo.ReserveEmailVerifyCode(
 			ctx,
 			req.Email,
+			string(constant.EmailVerifyPurposeResetPassword),
 			req.Code,
 			reservationToken,
 		)
@@ -834,13 +839,13 @@ func ResetPassword(ctx context.Context, req *dto.ResetPasswordReq) error {
 		user.ID,
 		string(passwordHash),
 	); err != nil {
-		releaseEmailVerifyCode(ctx, req.Email, reservationToken)
+		releaseEmailVerifyCode(ctx, req.Email, string(constant.EmailVerifyPurposeResetPassword), reservationToken)
 		return errs.NewInternalServer(
 			http.StatusInternalServerError,
 			"reset password failed",
 		)
 	}
-	commitEmailVerifyCode(ctx, req.Email, reservationToken)
+	commitEmailVerifyCode(ctx, req.Email, string(constant.EmailVerifyPurposeResetPassword), reservationToken)
 
 	return nil
 }
@@ -906,6 +911,7 @@ func UpdateEmail(
 		valid, err := repo.ReserveEmailVerifyCode(
 			ctx,
 			req.Email,
+			string(constant.EmailVerifyPurposeChangeEmail),
 			req.Code,
 			reservationToken,
 		)
@@ -921,39 +927,43 @@ func UpdateEmail(
 				"invalid or expired email verification code",
 			)
 		}
+		verifiedAt := time.Now().UTC()
+		user.EmailVerifiedAt = &verifiedAt
+	} else {
+		user.EmailVerifiedAt = nil
 	}
 
 	user.Email = req.Email
 
 	if err := repo.UpdateUser(ctx, &user); err != nil {
-		releaseEmailVerifyCode(ctx, req.Email, reservationToken)
+		releaseEmailVerifyCode(ctx, req.Email, string(constant.EmailVerifyPurposeChangeEmail), reservationToken)
 		return errs.NewInternalServer(
 			http.StatusInternalServerError,
 			"update email failed",
 		)
 	}
-	commitEmailVerifyCode(ctx, req.Email, reservationToken)
+	commitEmailVerifyCode(ctx, req.Email, string(constant.EmailVerifyPurposeChangeEmail), reservationToken)
 
 	return nil
 }
 
-func commitEmailVerifyCode(ctx context.Context, email, token string) {
+func commitEmailVerifyCode(ctx context.Context, email, purpose, token string) {
 	if token == "" {
 		return
 	}
 
-	committed, err := repo.CommitEmailVerifyCode(context.WithoutCancel(ctx), email, token)
+	committed, err := repo.CommitEmailVerifyCode(context.WithoutCancel(ctx), email, purpose, token)
 	if err != nil || !committed {
 		log.Printf("commit email verification code failed")
 	}
 }
 
-func releaseEmailVerifyCode(ctx context.Context, email, token string) {
+func releaseEmailVerifyCode(ctx context.Context, email, purpose, token string) {
 	if token == "" {
 		return
 	}
 
-	released, err := repo.ReleaseEmailVerifyCode(context.WithoutCancel(ctx), email, token)
+	released, err := repo.ReleaseEmailVerifyCode(context.WithoutCancel(ctx), email, purpose, token)
 	if err != nil || !released {
 		log.Printf("release email verification code failed")
 	}

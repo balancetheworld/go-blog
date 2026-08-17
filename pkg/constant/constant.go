@@ -12,6 +12,8 @@ type CaptchaType string
 // TargetType 操作目标类型，标记当前操作针对哪一类业务资源
 type TargetType string
 
+type EmailVerifyPurpose string
+
 // 角色枚举常量
 const (
 	RoleGuest  Role = "guest"
@@ -41,6 +43,12 @@ const (
 	TargetComment   TargetType = "comment" // 评论
 	TargetDiary     TargetType = "diary"   // 日记
 	TargetGuestbook TargetType = "guestbook"
+)
+
+const (
+	EmailVerifyPurposeRegister     EmailVerifyPurpose = "register"
+	EmailVerifyPurposeResetPassword EmailVerifyPurpose = "reset_password"
+	EmailVerifyPurposeChangeEmail  EmailVerifyPurpose = "change_email"
 )
 
 // APIPrefix 全局API路由统一前缀

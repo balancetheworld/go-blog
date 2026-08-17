@@ -214,6 +214,9 @@
       "forgotPassword": "忘记密码",
       "submitting": "登录中...",
       "submit": "进入空间",
+      "or": "或",
+      "github": "使用 GitHub 继续",
+      "githubFailed": "GitHub 登录失败，请重试",
       "registerLink": "注册新账号",
       "success": "登录成功",
       "failed": "登录失败，请检查用户名和密码"
@@ -236,6 +239,8 @@
       "passwordPlaceholder": "至少 8 位字符",
       "submitting": "注册中...",
       "submit": "创建账号",
+      "or": "或",
+      "github": "使用 GitHub 注册或登录",
       "backToLogin": "返回登录",
       "rolesFailed": "身份列表加载失败",
       "emailRequired": "请先填写邮箱",
