@@ -3,15 +3,17 @@
 import type { FormEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Captcha } from '@/components/auth/captcha'
+import { GithubLoginButton } from '@/components/auth/github-login-button'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function LoginPage() {
   const t = useTranslations('Auth.login')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -19,6 +21,13 @@ export default function LoginPage() {
   const [captchaToken, setCaptchaToken] = useState('')
   const [captchaRequired, setCaptchaRequired] = useState(true)
   const { login } = useAuth()
+
+  useEffect(() => {
+    if (searchParams.get('oauth_error') !== 'github')
+      return
+    toast.error(t('githubFailed'))
+    router.replace('/auth/login')
+  }, [router, searchParams, t])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -103,6 +112,8 @@ export default function LoginPage() {
             >
               {submitting ? t('submitting') : t('submit')}
             </button>
+            <div className="auth-divider"><span>{t('or')}</span></div>
+            <GithubLoginButton label={t('github')} />
             <Link href="/auth/register" className="auth-submit auth-submit-ghost">{t('registerLink')}</Link>
           </form>
         </div>

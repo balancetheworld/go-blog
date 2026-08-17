@@ -11,6 +11,8 @@ func registerUserRoutes(group *route.RouterGroup) {
 	user := group.Group("/user")
 	user.POST("/login", middleware.UseCaptcha(), controller.Login)
 	user.POST("/register", middleware.UseCaptcha(), controller.Register)
+	user.GET("/oauth/github", controller.GithubAuthorize)
+	user.GET("/oauth/github/callback", controller.GithubCallback)
 	user.POST("/email/verify", controller.VerifyEmail)
 	user.GET("/captcha", controller.GetCaptchaConfig)
 	user.POST("/logout", middleware.UseAuth(true), controller.Logout)

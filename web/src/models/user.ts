@@ -62,6 +62,7 @@ export type RegisterResp = User
 
 export interface VerifyEmailReq {
   email: string
+  purpose: 'register' | 'reset_password' | 'change_email'
 }
 
 export interface ResetPasswordReq {

@@ -209,6 +209,19 @@ func GetUserByEmail(ctx context.Context, email string) (model.User, error) {
 	return user, err
 }
 
+func GetUserByGithubID(ctx context.Context, githubID uint64) (model.User, error) {
+	if db == nil {
+		return model.User{}, errors.New("database is not initialized")
+	}
+
+	var user model.User
+	err := db.WithContext(ctx).
+		Where("github_id = ?", githubID).
+		First(&user).
+		Error
+	return user, err
+}
+
 func GetUserByUsernameOrEmail(ctx context.Context, value string) (model.User, error) {
 	if db == nil {
 		return model.User{}, errors.New("database is not initialized")

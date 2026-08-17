@@ -9,6 +9,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const testEmailPurpose = "register"
+
 func setupEmailVerifyTest(t *testing.T) *miniredis.Miniredis {
 	t.Helper()
 
@@ -31,7 +33,7 @@ func TestEmailVerifyLocksAfterFifthInvalidAttempt(t *testing.T) {
 	ctx := context.Background()
 	email := "email-verify-lock@example.com"
 
-	saved, err := SaveEmailVerifyCode(ctx, email, "123456", "lock-test-ip")
+	saved, err := SaveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "lock-test-ip")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,6 +45,7 @@ func TestEmailVerifyLocksAfterFifthInvalidAttempt(t *testing.T) {
 		valid, err := ReserveEmailVerifyCode(
 			ctx,
 			email,
+			testEmailPurpose,
 			"654321",
 			fmt.Sprintf("invalid-token-%d", attempt),
 		)
@@ -52,25 +55,25 @@ func TestEmailVerifyLocksAfterFifthInvalidAttempt(t *testing.T) {
 		if valid {
 			t.Fatalf("expected attempt %d to fail", attempt)
 		}
-		if attempt < emailVerifyMaxTries && server.Exists(emailVerifyLockKey(email)) {
+		if attempt < emailVerifyMaxTries && server.Exists(emailVerifyLockKey(testEmailPurpose, email)) {
 			t.Fatalf("expected no lock before attempt %d", emailVerifyMaxTries)
 		}
 	}
 
-	if !server.Exists(emailVerifyLockKey(email)) {
+	if !server.Exists(emailVerifyLockKey(testEmailPurpose, email)) {
 		t.Fatal("expected email verification to be locked")
 	}
-	if ttl := server.TTL(emailVerifyLockKey(email)); ttl != emailVerifyLockTTL {
+	if ttl := server.TTL(emailVerifyLockKey(testEmailPurpose, email)); ttl != emailVerifyLockTTL {
 		t.Fatalf("expected lock TTL %s, got %s", emailVerifyLockTTL, ttl)
 	}
-	if server.Exists(emailVerifyKey(email)) {
+	if server.Exists(emailVerifyKey(testEmailPurpose, email)) {
 		t.Fatal("expected verification code to be deleted after lock")
 	}
-	if server.Exists(emailVerifyAttemptKey(email)) {
+	if server.Exists(emailVerifyAttemptKey(testEmailPurpose, email)) {
 		t.Fatal("expected attempt counter to be deleted after lock")
 	}
 
-	valid, err := ReserveEmailVerifyCode(ctx, email, "123456", "locked-token")
+	valid, err := ReserveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "locked-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +87,7 @@ func TestEmailVerifyCodeIsConsumedOnce(t *testing.T) {
 	ctx := context.Background()
 	email := "email-verify-consume@example.com"
 
-	saved, err := SaveEmailVerifyCode(ctx, email, "123456", "consume-test-ip")
+	saved, err := SaveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "consume-test-ip")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +95,7 @@ func TestEmailVerifyCodeIsConsumedOnce(t *testing.T) {
 		t.Fatal("expected verification code to be saved")
 	}
 
-	reserved, err := ReserveEmailVerifyCode(ctx, email, "123456", "consume-token")
+	reserved, err := ReserveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "consume-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +103,7 @@ func TestEmailVerifyCodeIsConsumedOnce(t *testing.T) {
 		t.Fatal("expected verification code to be reserved")
 	}
 
-	committed, err := CommitEmailVerifyCode(ctx, email, "consume-token")
+	committed, err := CommitEmailVerifyCode(ctx, email, testEmailPurpose, "consume-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +111,7 @@ func TestEmailVerifyCodeIsConsumedOnce(t *testing.T) {
 		t.Fatal("expected verification code to be committed")
 	}
 
-	reserved, err = ReserveEmailVerifyCode(ctx, email, "123456", "replay-token")
+	reserved, err = ReserveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "replay-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +119,7 @@ func TestEmailVerifyCodeIsConsumedOnce(t *testing.T) {
 		t.Fatal("expected committed verification code to be unavailable")
 	}
 
-	committed, err = CommitEmailVerifyCode(ctx, email, "consume-token")
+	committed, err = CommitEmailVerifyCode(ctx, email, testEmailPurpose, "consume-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +135,7 @@ func TestEmailVerifyRejectsEleventhIPRequest(t *testing.T) {
 
 	for request := 1; request <= emailVerifyIPLimit; request++ {
 		email := fmt.Sprintf("email-verify-ip-%d@example.com", request)
-		saved, err := SaveEmailVerifyCode(ctx, email, "123456", userIP)
+		saved, err := SaveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", userIP)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -142,14 +145,14 @@ func TestEmailVerifyRejectsEleventhIPRequest(t *testing.T) {
 	}
 
 	blockedEmail := "email-verify-ip-blocked@example.com"
-	saved, err := SaveEmailVerifyCode(ctx, blockedEmail, "123456", userIP)
+	saved, err := SaveEmailVerifyCode(ctx, blockedEmail, testEmailPurpose, "123456", userIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if saved {
 		t.Fatal("expected eleventh IP request to be rejected")
 	}
-	if server.Exists(emailVerifyKey(blockedEmail)) {
+	if server.Exists(emailVerifyKey(testEmailPurpose, blockedEmail)) {
 		t.Fatal("expected rejected request not to save a code")
 	}
 	if ttl := server.TTL(emailVerifyIPKey(userIP)); ttl != emailVerifyIPWindow {
@@ -160,6 +163,7 @@ func TestEmailVerifyRejectsEleventhIPRequest(t *testing.T) {
 	saved, err = SaveEmailVerifyCode(
 		ctx,
 		"email-verify-ip-window-reset@example.com",
+		testEmailPurpose,
 		"123456",
 		userIP,
 	)
@@ -177,25 +181,25 @@ func TestEmailVerifyCooldown(t *testing.T) {
 	email := "email-verify-cooldown@example.com"
 	userIP := "cooldown-test-ip"
 
-	saved, err := SaveEmailVerifyCode(ctx, email, "123456", userIP)
+	saved, err := SaveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", userIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !saved {
 		t.Fatal("expected first request to be accepted")
 	}
-	if ttl := server.TTL(emailVerifyCooldownKey(email)); ttl != emailVerifyCooldown {
+	if ttl := server.TTL(emailVerifyCooldownKey(testEmailPurpose, email)); ttl != emailVerifyCooldown {
 		t.Fatalf("expected cooldown TTL %s, got %s", emailVerifyCooldown, ttl)
 	}
 
-	saved, err = SaveEmailVerifyCode(ctx, email, "654321", userIP)
+	saved, err = SaveEmailVerifyCode(ctx, email, testEmailPurpose, "654321", userIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if saved {
 		t.Fatal("expected request during cooldown to be rejected")
 	}
-	code, err := server.Get(emailVerifyKey(email))
+	code, err := server.Get(emailVerifyKey(testEmailPurpose, email))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,14 +208,14 @@ func TestEmailVerifyCooldown(t *testing.T) {
 	}
 
 	server.FastForward(emailVerifyCooldown)
-	saved, err = SaveEmailVerifyCode(ctx, email, "654321", userIP)
+	saved, err = SaveEmailVerifyCode(ctx, email, testEmailPurpose, "654321", userIP)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !saved {
 		t.Fatal("expected request after cooldown to be accepted")
 	}
-	code, err = server.Get(emailVerifyKey(email))
+	code, err = server.Get(emailVerifyKey(testEmailPurpose, email))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +230,7 @@ func TestEmailVerifyReservationLifecycle(t *testing.T) {
 	email := "email-verify-reservation@example.com"
 	userIP := "reservation-test-ip"
 
-	saved, err := SaveEmailVerifyCode(ctx, email, "123456", userIP)
+	saved, err := SaveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", userIP)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,18 +238,18 @@ func TestEmailVerifyReservationLifecycle(t *testing.T) {
 		t.Fatal("expected verification code to be saved")
 	}
 
-	reserved, err := ReserveEmailVerifyCode(ctx, email, "123456", "token-1")
+	reserved, err := ReserveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "token-1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reserved {
 		t.Fatal("expected verification code to be reserved")
 	}
-	if codeTTL, reservationTTL := server.TTL(emailVerifyKey(email)), server.TTL(emailVerifyReservationKey(email)); codeTTL != reservationTTL {
+	if codeTTL, reservationTTL := server.TTL(emailVerifyKey(testEmailPurpose, email)), server.TTL(emailVerifyReservationKey(testEmailPurpose, email)); codeTTL != reservationTTL {
 		t.Fatalf("expected matching TTLs, got code=%s reservation=%s", codeTTL, reservationTTL)
 	}
 
-	reserved, err = ReserveEmailVerifyCode(ctx, email, "123456", "token-2")
+	reserved, err = ReserveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "token-2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +258,7 @@ func TestEmailVerifyReservationLifecycle(t *testing.T) {
 	}
 
 	server.FastForward(emailVerifyCooldown)
-	saved, err = SaveEmailVerifyCode(ctx, email, "654321", userIP)
+	saved, err = SaveEmailVerifyCode(ctx, email, testEmailPurpose, "654321", userIP)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +266,7 @@ func TestEmailVerifyReservationLifecycle(t *testing.T) {
 		t.Fatal("expected save while reserved to fail")
 	}
 
-	released, err := ReleaseEmailVerifyCode(ctx, email, "wrong-token")
+	released, err := ReleaseEmailVerifyCode(ctx, email, testEmailPurpose, "wrong-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +274,7 @@ func TestEmailVerifyReservationLifecycle(t *testing.T) {
 		t.Fatal("expected release with wrong token to fail")
 	}
 
-	released, err = ReleaseEmailVerifyCode(ctx, email, "token-1")
+	released, err = ReleaseEmailVerifyCode(ctx, email, testEmailPurpose, "token-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +282,7 @@ func TestEmailVerifyReservationLifecycle(t *testing.T) {
 		t.Fatal("expected reservation to be released")
 	}
 
-	reserved, err = ReserveEmailVerifyCode(ctx, email, "123456", "token-2")
+	reserved, err = ReserveEmailVerifyCode(ctx, email, testEmailPurpose, "123456", "token-2")
 	if err != nil {
 		t.Fatal(err)
 	}

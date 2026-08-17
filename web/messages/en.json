@@ -214,6 +214,9 @@
       "forgotPassword": "Forgot password",
       "submitting": "Logging in...",
       "submit": "Enter",
+      "or": "Or",
+      "github": "Continue with GitHub",
+      "githubFailed": "GitHub login failed. Please try again.",
       "registerLink": "Create an account",
       "success": "Logged in successfully",
       "failed": "Login failed. Check your username and password."
@@ -236,6 +239,8 @@
       "passwordPlaceholder": "At least 8 characters",
       "submitting": "Registering...",
       "submit": "Create account",
+      "or": "Or",
+      "github": "Register or log in with GitHub",
       "backToLogin": "Back to login",
       "rolesFailed": "Failed to load identities",
       "emailRequired": "Enter your email first",

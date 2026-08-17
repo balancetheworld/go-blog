@@ -36,7 +36,7 @@ export default function ResetPasswordPage() {
 
     setSendingCode(true)
     try {
-      await requestEmailVerify({ email })
+      await requestEmailVerify({ email, purpose: 'reset_password' })
       setCodeCooldown(60)
       toast.success(t('codeSent'))
     }
