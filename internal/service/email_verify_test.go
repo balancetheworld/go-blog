@@ -69,7 +69,6 @@ func registrationRequest(username, email, userIP string) dto.UserRegisterReq {
 		Username:  username,
 		Email:     email,
 		Password:  "password123",
-		Nickname:  username,
 		Code:      "123456",
 		UserIP:    userIP,
 		UserAgent: "service-test",

@@ -52,7 +52,6 @@ export interface RegisterReq {
   email: string
   emailCode: string
   username: string
-  nickname: string
   password: string
   requestedRoleId?: number
   captchaToken?: string

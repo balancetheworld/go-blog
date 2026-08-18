@@ -15,6 +15,7 @@ import {
 } from '@/api/user'
 import { Captcha } from '@/components/auth/captcha'
 import { GithubLoginButton } from '@/components/auth/github-login-button'
+import { FilterSelect } from '@/components/design/filter-select'
 import { useAuth } from '@/contexts/auth-context'
 
 export default function RegisterPage() {
@@ -109,10 +110,11 @@ export default function RegisterPage() {
         email,
         emailCode: String(formData.get('emailCode')),
         username: String(formData.get('username')),
-        nickname: String(formData.get('nickname')),
         password: String(formData.get('password')),
         captchaToken: captchaToken || undefined,
-        requestedRoleId: requestedRoleValue ? Number(requestedRoleValue) : undefined,
+        requestedRoleId: requestedRoleValue && requestedRoleValue !== 'none'
+          ? Number(requestedRoleValue)
+          : undefined,
       })
       await refreshUser()
 
@@ -120,7 +122,30 @@ export default function RegisterPage() {
       router.replace('/')
       router.refresh()
     }
-    catch {
+    catch (error) {
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.message
+        if (message === 'email already exists') {
+          toast.error(t('emailExists'))
+          return
+        }
+        if (message === 'username already exists') {
+          toast.error(t('usernameExists'))
+          return
+        }
+        if (message === 'invalid or expired email verification code') {
+          toast.error(t('invalidEmailCode'))
+          return
+        }
+        if (message === 'requested role is not available') {
+          toast.error(t('roleUnavailable'))
+          return
+        }
+        if (message === 'registration is disabled') {
+          toast.error(t('registrationDisabled'))
+          return
+        }
+      }
       toast.error(t('failed'))
     }
     finally {
@@ -197,34 +222,22 @@ export default function RegisterPage() {
               />
             </label>
 
-            <label className="auth-field" htmlFor="nickname">
-              <span>{t('nickname')}</span>
-              <input
-                id="nickname"
-                name="nickname"
-                type="text"
-                autoComplete="nickname"
-                placeholder={t('nicknamePlaceholder')}
-                maxLength={64}
-              />
-            </label>
-
-            <label className="auth-field" htmlFor="requestedRoleId">
+            <div className="auth-field">
               <span>{t('requestedRole')}</span>
-              <select
-                id="requestedRoleId"
+              <FilterSelect
                 name="requestedRoleId"
-                defaultValue=""
+                defaultValue="none"
+                ariaLabel={t('requestedRole')}
                 disabled={loadingRoles}
-              >
-                <option value="">{t('defaultRole')}</option>
-                {roles.map(role => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                options={[
+                  { value: 'none', label: t('defaultRole') },
+                  ...roles.map(role => ({
+                    value: String(role.id),
+                    label: role.name,
+                  })),
+                ]}
+              />
+            </div>
 
             <label className="auth-field" htmlFor="password">
               <span>{t('password')}</span>
