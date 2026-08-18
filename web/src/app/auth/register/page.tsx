@@ -102,6 +102,13 @@ export default function RegisterPage() {
     const requestedRoleValue = String(
       formData.get('requestedRoleId') ?? '',
     )
+    const password = String(formData.get('password') ?? '')
+    const confirmPassword = String(formData.get('confirmPassword') ?? '')
+
+    if (password !== confirmPassword) {
+      toast.error(t('passwordMismatch'))
+      return
+    }
 
     setSubmitting(true)
 
@@ -110,7 +117,7 @@ export default function RegisterPage() {
         email,
         emailCode: String(formData.get('emailCode')),
         username: String(formData.get('username')),
-        password: String(formData.get('password')),
+        password,
         captchaToken: captchaToken || undefined,
         requestedRoleId: requestedRoleValue && requestedRoleValue !== 'none'
           ? Number(requestedRoleValue)
@@ -247,6 +254,20 @@ export default function RegisterPage() {
                 type="password"
                 autoComplete="new-password"
                 placeholder={t('passwordPlaceholder')}
+                minLength={8}
+                maxLength={72}
+                required
+              />
+            </label>
+
+            <label className="auth-field" htmlFor="confirmPassword">
+              <span>{t('confirmPassword')}</span>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                placeholder={t('confirmPasswordPlaceholder')}
                 minLength={8}
                 maxLength={72}
                 required
