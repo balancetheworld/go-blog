@@ -52,7 +52,6 @@ export interface RegisterReq {
   email: string
   emailCode: string
   username: string
-  nickname: string
   password: string
   requestedRoleId?: number
   captchaToken?: string
@@ -62,6 +61,7 @@ export type RegisterResp = User
 
 export interface VerifyEmailReq {
   email: string
+  purpose: 'register' | 'reset_password' | 'change_email'
 }
 
 export interface ResetPasswordReq {

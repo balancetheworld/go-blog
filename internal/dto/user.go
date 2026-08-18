@@ -73,7 +73,6 @@ type UserRegisterReq struct {
 	Username        string `json:"username" vd:"len($) >= 3 && len($) <= 32"`
 	Email           string `json:"email" vd:"email($)"`
 	Password        string `json:"password" vd:"len($) >= 8 && len($) <= 72"`
-	Nickname        string `json:"nickname,omitempty" vd:"len($) <= 64"`
 	Code            string `json:"email_code,omitempty"`
 	Remember        bool   `json:"remember_me"`
 	UserIP          string `json:"-"`
@@ -82,8 +81,9 @@ type UserRegisterReq struct {
 }
 
 type VerifyEmailReq struct {
-	Email  string `json:"email" vd:"email($)"`
-	UserIP string `json:"-"`
+	Email   string `json:"email" vd:"email($)"`
+	Purpose string `json:"purpose" vd:"in($, 'register', 'reset_password', 'change_email')"`
+	UserIP  string `json:"-"`
 }
 
 type UpdatePasswordReq struct {

@@ -52,10 +52,10 @@ func setupEmailVerifyServiceTest(t *testing.T, databaseName string) (*miniredis.
 	return server, ctx
 }
 
-func saveServiceVerificationCode(t *testing.T, ctx context.Context, email, userIP string) {
+func saveServiceVerificationCode(t *testing.T, ctx context.Context, email, userIP string, purpose constant.EmailVerifyPurpose) {
 	t.Helper()
 
-	saved, err := repo.SaveEmailVerifyCode(ctx, email, "123456", userIP)
+	saved, err := repo.SaveEmailVerifyCode(ctx, email, string(purpose), "123456", userIP)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,11 +69,37 @@ func registrationRequest(username, email, userIP string) dto.UserRegisterReq {
 		Username:  username,
 		Email:     email,
 		Password:  "password123",
-		Nickname:  username,
 		Code:      "123456",
 		UserIP:    userIP,
 		UserAgent: "service-test",
 	}
+}
+
+func TestResetPasswordRejectsRegisterVerificationCode(t *testing.T) {
+	_, ctx := setupEmailVerifyServiceTest(t, "reset-password-purpose.db")
+	email := "reset-password-purpose@example.com"
+	memberRole, err := repo.GetRoleByCode(ctx, constant.RoleCodeMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user := model.User{
+		Username:     "reset-password-purpose",
+		Email:        email,
+		PasswordHash: "existing-password-hash",
+		Role:         constant.RoleUser,
+		RoleID:       &memberRole.ID,
+	}
+	if err := repo.CreateUser(ctx, &user); err != nil {
+		t.Fatal(err)
+	}
+
+	saveServiceVerificationCode(t, ctx, email, "reset-password-purpose", constant.EmailVerifyPurposeRegister)
+	err = ResetPassword(ctx, &dto.ResetPasswordReq{
+		Email:       email,
+		Code:        "123456",
+		NewPassword: "new-password",
+	})
+	requireServiceStatus(t, err, 401)
 }
 
 func TestResetPasswordReleasesVerificationCodeAfterDatabaseFailure(t *testing.T) {
@@ -97,7 +123,7 @@ func TestResetPasswordReleasesVerificationCodeAfterDatabaseFailure(t *testing.T)
 		t.Fatal(err)
 	}
 
-	saveServiceVerificationCode(t, ctx, email, userIP)
+	saveServiceVerificationCode(t, ctx, email, userIP, constant.EmailVerifyPurposeResetPassword)
 
 	callbackName := "test:fail_reset_password_update"
 	callbackRegistered := true
@@ -145,7 +171,7 @@ func TestResetPasswordReleasesVerificationCodeAfterDatabaseFailure(t *testing.T)
 		t.Fatal(err)
 	}
 
-	reserved, err := repo.ReserveEmailVerifyCode(ctx, email, "123456", "replay-token")
+	reserved, err := repo.ReserveEmailVerifyCode(ctx, email, string(constant.EmailVerifyPurposeResetPassword), "123456", "replay-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +184,7 @@ func TestRegisterReleasesVerificationCodeAfterDatabaseFailure(t *testing.T) {
 	_, ctx := setupEmailVerifyServiceTest(t, "register-database-failure.db")
 	email := "register-database-failure@example.com"
 	req := registrationRequest("register-db-failure", email, "register-db-failure")
-	saveServiceVerificationCode(t, ctx, email, req.UserIP)
+	saveServiceVerificationCode(t, ctx, email, req.UserIP, constant.EmailVerifyPurposeRegister)
 
 	callbackName := "test:fail_register_user_create"
 	callbackRegistered := true
@@ -189,7 +215,7 @@ func TestRegisterReleasesVerificationCodeAfterDatabaseFailure(t *testing.T) {
 	if _, err := UserRegister(ctx, &req); err != nil {
 		t.Fatal(err)
 	}
-	reserved, err := repo.ReserveEmailVerifyCode(ctx, email, "123456", "replay-token")
+	reserved, err := repo.ReserveEmailVerifyCode(ctx, email, string(constant.EmailVerifyPurposeRegister), "123456", "replay-token")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +228,7 @@ func TestRegisterRollsBackUserAndSessionAfterTokenFailure(t *testing.T) {
 	_, ctx := setupEmailVerifyServiceTest(t, "register-token-failure.db")
 	email := "register-token-failure@example.com"
 	req := registrationRequest("register-token-failure", email, "register-token-failure")
-	saveServiceVerificationCode(t, ctx, email, req.UserIP)
+	saveServiceVerificationCode(t, ctx, email, req.UserIP, constant.EmailVerifyPurposeRegister)
 	t.Setenv(constant.EnvKeyJWTSecret, "short")
 
 	_, err := UserRegister(ctx, &req)
@@ -253,7 +279,7 @@ func TestUpdateEmailReleasesVerificationCodeAfterDatabaseFailure(t *testing.T) {
 	}
 
 	newEmail := "new-email@example.com"
-	saveServiceVerificationCode(t, ctx, newEmail, "update-email-failure")
+	saveServiceVerificationCode(t, ctx, newEmail, "update-email-failure", constant.EmailVerifyPurposeChangeEmail)
 	callbackName := "test:fail_update_email"
 	callbackRegistered := true
 	t.Cleanup(func() {
@@ -297,7 +323,7 @@ func TestRegisterSucceedsWhenVerificationCommitFails(t *testing.T) {
 	server, ctx := setupEmailVerifyServiceTest(t, "register-commit-failure.db")
 	email := "register-commit-failure@example.com"
 	req := registrationRequest("register-commit-failure", email, "register-commit-failure")
-	saveServiceVerificationCode(t, ctx, email, req.UserIP)
+	saveServiceVerificationCode(t, ctx, email, req.UserIP, constant.EmailVerifyPurposeRegister)
 
 	callbackName := "test:fail_verification_commit"
 	if err := repo.GetDB().Callback().Create().After("gorm:create").Register(

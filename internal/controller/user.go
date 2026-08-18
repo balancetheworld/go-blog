@@ -2,9 +2,12 @@ package controller
 
 import (
 	"context"
+	"log"
 	"strconv"
+	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/zyj/my-blog/internal/dto"
 	"github.com/zyj/my-blog/internal/middleware"
 	"github.com/zyj/my-blog/internal/repo"
@@ -122,6 +125,60 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		result.RefreshMaxAge,
 	)
 	resps.Ok(c, resps.Success, result.User)
+}
+
+func GithubAuthorize(ctx context.Context, c *app.RequestContext) {
+	authorizationURL, err := service.GetGithubAuthorizationURL(ctx)
+	if err != nil {
+		redirectGithubLogin(c)
+		return
+	}
+	c.Redirect(consts.StatusFound, []byte(authorizationURL))
+	c.Abort()
+}
+
+func GithubCallback(ctx context.Context, c *app.RequestContext) {
+	result, err := service.CompleteGithubOAuthLogin(
+		ctx,
+		string(c.QueryArgs().Peek("code")),
+		string(c.QueryArgs().Peek("state")),
+		c.ClientIP(),
+		string(c.UserAgent()),
+	)
+	if err != nil {
+		log.Printf("github oauth callback failed: %v", err)
+		redirectGithubLogin(c)
+		return
+	}
+
+	middleware.SetTokenCookies(
+		c,
+		result.AccessToken,
+		result.RefreshToken,
+		result.AccessMaxAge,
+		result.RefreshMaxAge,
+	)
+	c.Redirect(consts.StatusFound, []byte(githubFrontendURL("/")))
+	c.Abort()
+}
+
+func redirectGithubLogin(c *app.RequestContext) {
+	c.Redirect(
+		consts.StatusFound,
+		[]byte(githubFrontendURL("/auth/login?oauth_error=github")),
+	)
+	c.Abort()
+}
+
+func githubFrontendURL(path string) string {
+	baseURL := strings.TrimRight(
+		utils.Get(constant.EnvKeyBaseURL, ""),
+		"/",
+	)
+	if baseURL == "" {
+		return path
+	}
+	return baseURL + path
 }
 
 func Register(ctx context.Context, c *app.RequestContext) {

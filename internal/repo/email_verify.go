@@ -83,7 +83,7 @@ redis.call("DEL", KEYS[4])
 return 1
 `)
 
-func SaveEmailVerifyCode(ctx context.Context, email, code, userIP string) (bool, error) {
+func SaveEmailVerifyCode(ctx context.Context, email, purpose, code, userIP string) (bool, error) {
 	client, err := getRedis()
 	if err != nil {
 		return false, err
@@ -93,10 +93,10 @@ func SaveEmailVerifyCode(ctx context.Context, email, code, userIP string) (bool,
 		ctx,
 		client,
 		[]string{
-			emailVerifyKey(email),
-			emailVerifyCooldownKey(email),
+			emailVerifyKey(purpose, email),
+			emailVerifyCooldownKey(purpose, email),
 			emailVerifyIPKey(userIP),
-			emailVerifyReservationKey(email),
+			emailVerifyReservationKey(purpose, email),
 		},
 		code,
 		int64(emailVerifyTTL/time.Second),
@@ -111,7 +111,7 @@ func SaveEmailVerifyCode(ctx context.Context, email, code, userIP string) (bool,
 	return result == 1, nil
 }
 
-func ReserveEmailVerifyCode(ctx context.Context, email, code, token string) (bool, error) {
+func ReserveEmailVerifyCode(ctx context.Context, email, purpose, code, token string) (bool, error) {
 	client, err := getRedis()
 	if err != nil {
 		return false, err
@@ -121,10 +121,10 @@ func ReserveEmailVerifyCode(ctx context.Context, email, code, token string) (boo
 		ctx,
 		client,
 		[]string{
-			emailVerifyKey(email),
-			emailVerifyAttemptKey(email),
-			emailVerifyLockKey(email),
-			emailVerifyReservationKey(email),
+			emailVerifyKey(purpose, email),
+			emailVerifyAttemptKey(purpose, email),
+			emailVerifyLockKey(purpose, email),
+			emailVerifyReservationKey(purpose, email),
 		},
 		code,
 		token,
@@ -139,7 +139,7 @@ func ReserveEmailVerifyCode(ctx context.Context, email, code, token string) (boo
 	return result == 1, nil
 }
 
-func CommitEmailVerifyCode(ctx context.Context, email, token string) (bool, error) {
+func CommitEmailVerifyCode(ctx context.Context, email, purpose, token string) (bool, error) {
 	client, err := getRedis()
 	if err != nil {
 		return false, err
@@ -149,10 +149,10 @@ func CommitEmailVerifyCode(ctx context.Context, email, token string) (bool, erro
 		ctx,
 		client,
 		[]string{
-			emailVerifyKey(email),
-			emailVerifyAttemptKey(email),
-			emailVerifyLockKey(email),
-			emailVerifyReservationKey(email),
+			emailVerifyKey(purpose, email),
+			emailVerifyAttemptKey(purpose, email),
+			emailVerifyLockKey(purpose, email),
+			emailVerifyReservationKey(purpose, email),
 		},
 		token,
 	).Int64()
@@ -163,7 +163,7 @@ func CommitEmailVerifyCode(ctx context.Context, email, token string) (bool, erro
 	return result == 1, nil
 }
 
-func ReleaseEmailVerifyCode(ctx context.Context, email, token string) (bool, error) {
+func ReleaseEmailVerifyCode(ctx context.Context, email, purpose, token string) (bool, error) {
 	client, err := getRedis()
 	if err != nil {
 		return false, err
@@ -173,10 +173,10 @@ func ReleaseEmailVerifyCode(ctx context.Context, email, token string) (bool, err
 		ctx,
 		client,
 		[]string{
-			emailVerifyKey(email),
-			emailVerifyAttemptKey(email),
-			emailVerifyLockKey(email),
-			emailVerifyReservationKey(email),
+			emailVerifyKey(purpose, email),
+			emailVerifyAttemptKey(purpose, email),
+			emailVerifyLockKey(purpose, email),
+			emailVerifyReservationKey(purpose, email),
 		},
 		token,
 	).Int64()
@@ -187,24 +187,24 @@ func ReleaseEmailVerifyCode(ctx context.Context, email, token string) (bool, err
 	return result == 1, nil
 }
 
-func emailVerifyKey(email string) string {
-	return "email_verify:" + strings.ToLower(strings.TrimSpace(email))
+func emailVerifyKey(purpose, email string) string {
+	return "email_verify:" + strings.ToLower(strings.TrimSpace(purpose)) + ":" + strings.ToLower(strings.TrimSpace(email))
 }
 
-func emailVerifyCooldownKey(email string) string {
-	return "email_verify_cooldown:" + strings.ToLower(strings.TrimSpace(email))
+func emailVerifyCooldownKey(purpose, email string) string {
+	return "email_verify_cooldown:" + strings.ToLower(strings.TrimSpace(purpose)) + ":" + strings.ToLower(strings.TrimSpace(email))
 }
 
-func emailVerifyAttemptKey(email string) string {
-	return "email_verify_attempt:" + strings.ToLower(strings.TrimSpace(email))
+func emailVerifyAttemptKey(purpose, email string) string {
+	return "email_verify_attempt:" + strings.ToLower(strings.TrimSpace(purpose)) + ":" + strings.ToLower(strings.TrimSpace(email))
 }
 
-func emailVerifyLockKey(email string) string {
-	return "email_verify_lock:" + strings.ToLower(strings.TrimSpace(email))
+func emailVerifyLockKey(purpose, email string) string {
+	return "email_verify_lock:" + strings.ToLower(strings.TrimSpace(purpose)) + ":" + strings.ToLower(strings.TrimSpace(email))
 }
 
-func emailVerifyReservationKey(email string) string {
-	return "email_verify_reservation:" + strings.ToLower(strings.TrimSpace(email))
+func emailVerifyReservationKey(purpose, email string) string {
+	return "email_verify_reservation:" + strings.ToLower(strings.TrimSpace(purpose)) + ":" + strings.ToLower(strings.TrimSpace(email))
 }
 
 func emailVerifyIPKey(userIP string) string {
