@@ -15,6 +15,7 @@ interface FilterSelectProps {
   ariaLabel: string
   options: FilterSelectOption[]
   submitOnChange?: boolean
+  disabled?: boolean
 }
 
 export function FilterSelect({
@@ -23,6 +24,7 @@ export function FilterSelect({
   ariaLabel,
   options,
   submitOnChange = false,
+  disabled = false,
 }: FilterSelectProps) {
   const [value, setValue] = useState(defaultValue)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -40,7 +42,7 @@ export function FilterSelect({
     <>
       {value !== 'all' && <input type="hidden" name={name} value={value} />}
       <Select.Root value={value} onValueChange={handleValueChange}>
-        <Select.Trigger ref={triggerRef} className="filter-select-trigger" aria-label={ariaLabel}>
+        <Select.Trigger ref={triggerRef} className="filter-select-trigger" aria-label={ariaLabel} disabled={disabled}>
           <Select.Value />
           <Select.Icon>
             <ChevronDown aria-hidden="true" />

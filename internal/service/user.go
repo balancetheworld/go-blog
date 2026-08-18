@@ -537,7 +537,7 @@ func UserRegister(ctx context.Context, req *dto.UserRegisterReq) (dto.UserAuthRe
 	// 7. 组装用户数据库model，准备写入users表
 	user := model.User{
 		Username:     req.Username,         // 用户名
-		Nickname:     req.Nickname,         // 昵称
+		Nickname:     req.Username,         // 昵称
 		Email:        req.Email,            // 邮箱
 		PasswordHash: string(passwordHash), // 加密后的密码
 		Role:         constant.RoleUser,    // 用户角色 admin/user
