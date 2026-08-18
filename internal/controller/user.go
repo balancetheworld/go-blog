@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"log"
 	"strconv"
 	"strings"
 
@@ -145,6 +146,7 @@ func GithubCallback(ctx context.Context, c *app.RequestContext) {
 		string(c.UserAgent()),
 	)
 	if err != nil {
+		log.Printf("github oauth callback failed: %v", err)
 		redirectGithubLogin(c)
 		return
 	}
