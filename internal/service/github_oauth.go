@@ -161,6 +161,34 @@ func loginGithubUser(
 		)
 	}
 
+	email := strings.ToLower(strings.TrimSpace(profile.Email))
+	existingUser, err := repo.GetUserByEmail(ctx, email)
+	if err == nil {
+		bound, err := repo.BindGithubID(ctx, existingUser.ID, profile.ID)
+		if err != nil {
+			return dto.UserAuthResponse{}, errs.NewInternalServer(
+				http.StatusInternalServerError,
+				"bind github user failed",
+			)
+		}
+		if !bound {
+			return dto.UserAuthResponse{}, errs.NewConflict(
+				http.StatusConflict,
+				"github account cannot be registered",
+			)
+		}
+
+		githubID := profile.ID
+		existingUser.GithubID = &githubID
+		return createGithubSession(ctx, existingUser, userIP, userAgent)
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.UserAuthResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get github email user failed",
+		)
+	}
+
 	if !utils.GetAsBool(constant.EnvKeyEnableRegister, true) {
 		return dto.UserAuthResponse{}, errs.NewForbidden(
 			http.StatusForbidden,
@@ -180,21 +208,6 @@ func loginGithubUser(
 		return dto.UserAuthResponse{}, errs.NewConflict(
 			http.StatusConflict,
 			"github account cannot be registered",
-		)
-	}
-
-	email := strings.ToLower(strings.TrimSpace(profile.Email))
-	emailExists, err := repo.CheckEmailExists(ctx, email)
-	if err != nil {
-		return dto.UserAuthResponse{}, errs.NewInternalServer(
-			http.StatusInternalServerError,
-			"check github email failed",
-		)
-	}
-	if emailExists {
-		return dto.UserAuthResponse{}, errs.NewConflict(
-			http.StatusConflict,
-			"github email is already registered",
 		)
 	}
 
