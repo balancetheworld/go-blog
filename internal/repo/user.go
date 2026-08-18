@@ -222,6 +222,22 @@ func GetUserByGithubID(ctx context.Context, githubID uint64) (model.User, error)
 	return user, err
 }
 
+func BindGithubID(ctx context.Context, userID uint, githubID uint64) (bool, error) {
+	if db == nil {
+		return false, errors.New("database is not initialized")
+	}
+
+	result := db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ? AND github_id IS NULL", userID).
+		Update("github_id", githubID)
+	if result.Error != nil {
+		return false, result.Error
+	}
+
+	return result.RowsAffected == 1, nil
+}
+
 func GetUserByUsernameOrEmail(ctx context.Context, value string) (model.User, error) {
 	if db == nil {
 		return model.User{}, errors.New("database is not initialized")

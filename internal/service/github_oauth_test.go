@@ -43,26 +43,40 @@ func TestGithubLoginCreatesAndReusesUser(t *testing.T) {
 	}
 }
 
-func TestGithubLoginRejectsExistingEmail(t *testing.T) {
+func TestGithubLoginBindsExistingEmail(t *testing.T) {
 	_, ctx := setupEmailVerifyServiceTest(t, "github-email-conflict.db")
 	memberRole, err := repo.GetRoleByCode(ctx, constant.RoleCodeMember)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.CreateUser(ctx, &model.User{
+	existingUser := model.User{
 		Username:     "existing-email-user",
 		Email:        "existing@example.com",
 		PasswordHash: "password-hash",
 		Role:         constant.RoleUser,
 		RoleID:       &memberRole.ID,
-	}); err != nil {
+	}
+	if err := repo.CreateUser(ctx, &existingUser); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = loginGithubUser(ctx, githubProfile{
+	result, err := loginGithubUser(ctx, githubProfile{
 		ID:    654321,
 		Login: "another-user",
 		Email: "existing@example.com",
 	}, "192.0.2.3", "service-test")
-	requireServiceStatus(t, err, 409)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.User.ID != uint64(existingUser.ID) {
+		t.Fatalf("expected existing user %d, got %d", existingUser.ID, result.User.ID)
+	}
+
+	user, err := repo.GetUserByID(ctx, uint64(existingUser.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user.GithubID == nil || *user.GithubID != 654321 {
+		t.Fatalf("unexpected github id: %#v", user.GithubID)
+	}
 }
