@@ -130,6 +130,7 @@ func migrate() error {
 		&model.Diary{},
 		&model.Moment{},
 		&model.Comment{},
+		&model.AITask{},
 	); err != nil {
 		return err
 	}

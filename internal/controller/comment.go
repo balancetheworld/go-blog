@@ -88,6 +88,33 @@ func ListCommentReplies(ctx context.Context, c *app.RequestContext) {
 	resps.Ok(c, resps.Success, replies)
 }
 
+func GetCommentModeration(ctx context.Context, c *app.RequestContext) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		resps.BadRequest(c, resps.ErrParamInvalid)
+		return
+	}
+
+	viewerID, ok := middleware.GetCurrentUserID(c)
+	if !ok {
+		resps.Unauthorized(c, resps.ErrUnauthorized)
+		return
+	}
+
+	result, err := service.GetCommentModeration(
+		ctx,
+		uint(id),
+		viewerID,
+		middleware.GetCurrentRole(c),
+	)
+	if err != nil {
+		resps.Error(c, err)
+		return
+	}
+
+	resps.Ok(c, resps.Success, result)
+}
+
 func DeleteComment(ctx context.Context, c *app.RequestContext) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {

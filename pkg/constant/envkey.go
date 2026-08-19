@@ -45,4 +45,7 @@ const (
 	EnvKeyRedisPassword                    = "REDIS_PASSWORD"
 	EnvKeyRedisDB                          = "REDIS_DB"
 	EnvKeyFileBasePath                     = "FILE_BASEPATH"
+	EnvKeyAIModerationBaseURL              = "AI_MODERATION_BASE_URL"
+	EnvKeyAIModerationAPIKey               = "AI_MODERATION_API_KEY"
+	EnvKeyAIModerationModel                = "AI_MODERATION_MODEL"
 )

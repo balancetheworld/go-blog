@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
 	"github.com/zyj/my-blog/internal/dto"
 	"github.com/zyj/my-blog/internal/model"
 	"github.com/zyj/my-blog/internal/repo"
+	"github.com/zyj/my-blog/internal/task"
 	"github.com/zyj/my-blog/pkg/constant"
 	"github.com/zyj/my-blog/pkg/errs"
 	"gorm.io/gorm"
@@ -51,20 +53,25 @@ func toCommentResponse(comment model.Comment) dto.CommentResponse {
 	}
 
 	return dto.CommentResponse{
-		ID:          uint64(comment.ID),
-		PostID:      postID,
-		TargetType:  comment.TargetType,
-		TargetID:    uint64(comment.TargetID),
-		ParentID:    parentID,
-		RootID:      rootID,
-		ReplyToUser: replyToUser,
-		Content:     comment.Content,
-		Author:      toUserResponse(comment.Author),
-		Depth:       comment.Depth,
-		ReplyCount:  comment.ReplyCount,
-		LikeCount:   comment.LikeCount,
-		CreatedAt:   comment.CreatedAt,
-		UpdatedAt:   comment.UpdatedAt,
+		ID:                   uint64(comment.ID),
+		PostID:               postID,
+		TargetType:           comment.TargetType,
+		TargetID:             uint64(comment.TargetID),
+		ParentID:             parentID,
+		RootID:               rootID,
+		ReplyToUser:          replyToUser,
+		Content:              comment.Content,
+		ModerationStatus:     comment.ModerationStatus,
+		ModerationReason:     comment.ModerationReason,
+		ModerationCategories: comment.ModerationCategories,
+		ModerationConfidence: comment.ModerationConfidence,
+		ModeratedAt:          comment.ModeratedAt,
+		Author:               toUserResponse(comment.Author),
+		Depth:                comment.Depth,
+		ReplyCount:           comment.ReplyCount,
+		LikeCount:            comment.LikeCount,
+		CreatedAt:            comment.CreatedAt,
+		UpdatedAt:            comment.UpdatedAt,
 	}
 }
 
@@ -104,12 +111,13 @@ func ListComments(
 	}
 
 	comments, total, err := repo.ListComments(ctx, repo.CommentListFilter{
-		TargetType:   targetType,
-		TargetID:     targetID,
-		TopLevelOnly: true,
-		Offset:       (req.Page - 1) * req.PageSize,
-		Limit:        req.PageSize,
-		NewestFirst:  targetType == constant.TargetGuestbook,
+		TargetType:       targetType,
+		TargetID:         targetID,
+		ModerationStatus: constant.ModerationApproved,
+		TopLevelOnly:     true,
+		Offset:           (req.Page - 1) * req.PageSize,
+		Limit:            req.PageSize,
+		NewestFirst:      targetType == constant.TargetGuestbook,
 	})
 	if err != nil {
 		return dto.CommentListResponse{}, errs.NewInternalServer(
@@ -148,8 +156,15 @@ func ListCommentReplies(
 	); err != nil {
 		return nil, err
 	}
+	if parent.ModerationStatus != constant.ModerationApproved {
+		return []dto.CommentResponse{}, nil
+	}
 
-	replies, err := repo.ListCommentReplies(ctx, parentID)
+	replies, err := repo.ListCommentReplies(
+		ctx,
+		parentID,
+		constant.ModerationApproved,
+	)
 	if err != nil {
 		return nil, errs.NewInternalServer(
 			http.StatusInternalServerError,
@@ -277,6 +292,21 @@ func CreateComment(
 		)
 	}
 
+	moderationTask, err := repo.GetCommentModerationTask(ctx, comment.ID)
+	if err != nil {
+		log.Printf(
+			"get comment moderation task failed: comment_id=%d err=%v",
+			comment.ID,
+			err,
+		)
+	} else if err := task.EnqueueCommentModeration(ctx, moderationTask.ID); err != nil {
+		log.Printf(
+			"enqueue comment moderation task failed: task_id=%d err=%v",
+			moderationTask.ID,
+			err,
+		)
+	}
+
 	createdComment, err := repo.GetCommentByID(ctx, comment.ID)
 	if err != nil {
 		return dto.CommentResponse{}, errs.NewInternalServer(
@@ -331,6 +361,85 @@ func DeleteComment(
 	}
 
 	return nil
+}
+
+func ModerateComment(
+	ctx context.Context,
+	id uint,
+	role constant.Role,
+	req dto.UpdateCommentModerationRequest,
+) (dto.CommentResponse, error) {
+	if role != constant.RoleAdmin {
+		return dto.CommentResponse{}, errs.NewForbidden(
+			http.StatusForbidden,
+			"admin comment moderation denied",
+		)
+	}
+
+	comment, err := repo.GetCommentByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.CommentResponse{}, errs.NewNotFound(http.StatusNotFound, "comment not found")
+	}
+	if err != nil {
+		return dto.CommentResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get comment failed",
+		)
+	}
+
+	if err := repo.UpdateCommentModeration(
+		ctx,
+		id,
+		req.Status,
+		strings.TrimSpace(req.Reason),
+	); err != nil {
+		return dto.CommentResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"update comment moderation failed",
+		)
+	}
+
+	updatedComment, err := repo.GetCommentByID(ctx, comment.ID)
+	if err != nil {
+		return dto.CommentResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get updated comment failed",
+		)
+	}
+
+	return toCommentResponse(updatedComment), nil
+}
+
+func GetCommentModeration(
+	ctx context.Context,
+	id uint,
+	viewerID uint,
+	role constant.Role,
+) (dto.CommentModerationResponse, error) {
+	comment, err := repo.GetCommentByID(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return dto.CommentModerationResponse{}, errs.NewNotFound(http.StatusNotFound, "comment not found")
+	}
+	if err != nil {
+		return dto.CommentModerationResponse{}, errs.NewInternalServer(
+			http.StatusInternalServerError,
+			"get comment failed",
+		)
+	}
+
+	if role != constant.RoleAdmin && (viewerID == 0 || comment.AuthorID != viewerID) {
+		return dto.CommentModerationResponse{}, errs.NewForbidden(
+			http.StatusForbidden,
+			"comment moderation access denied",
+		)
+	}
+
+	return dto.CommentModerationResponse{
+		ID:               uint64(comment.ID),
+		ModerationStatus: comment.ModerationStatus,
+		ModerationReason: comment.ModerationReason,
+		ModeratedAt:      comment.ModeratedAt,
+	}, nil
 }
 
 func normalizeCommentListTarget(

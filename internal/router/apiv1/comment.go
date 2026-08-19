@@ -11,6 +11,7 @@ func registerCommentRoutes(group *route.RouterGroup) {
 	comment := group.Group("/comment")
 	comment.GET("/list", middleware.UseAuth(false), controller.ListComments)
 	comment.GET("/:id/replies", middleware.UseAuth(false), controller.ListCommentReplies)
+	comment.GET("/:id/moderation", middleware.UseAuth(true), controller.GetCommentModeration)
 	comment.POST("", middleware.UseAuth(true), controller.CreateComment)
 	comment.DELETE("/:id", middleware.UseAuth(true), controller.DeleteComment)
 
@@ -20,5 +21,6 @@ func registerCommentRoutes(group *route.RouterGroup) {
 		middleware.UseRole(constant.RoleAdmin),
 	)
 	admin.GET("/list", controller.ListAdminComments)
+	admin.PATCH("/:id/moderation", controller.ModerateComment)
 	admin.DELETE("/:id", controller.DeleteAdminComment)
 }

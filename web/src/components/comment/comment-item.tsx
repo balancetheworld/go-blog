@@ -57,7 +57,7 @@ export function CommentItem({
     }
   }
 
-  async function handleReplyCreated() {
+  async function handleReplyCreated(_comment: Comment) {
     setReplying(false)
     await loadReplies()
   }
@@ -94,6 +94,15 @@ export function CommentItem({
               </time>
               {comment.replyToUser && (
                 <span>{t('replyTo', { name: comment.replyToUser.nickname || comment.replyToUser.username })}</span>
+              )}
+              {comment.moderationStatus === 'pending' && (
+                <span>{t('moderationPending')}</span>
+              )}
+              {comment.moderationStatus === 'manual_review' && (
+                <span>{t('moderationManualReview')}</span>
+              )}
+              {comment.moderationStatus === 'rejected' && (
+                <span>{t('moderationRejected')}</span>
               )}
             </div>
           </div>
