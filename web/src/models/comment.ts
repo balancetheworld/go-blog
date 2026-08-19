@@ -4,6 +4,21 @@ export type CommentTargetType = 'post' | 'page' | 'comment' | 'diary' | 'guestbo
 
 export type CommentContentTargetType = Exclude<CommentTargetType, 'comment'>
 
+export type CommentModerationStatus
+  = | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'manual_review'
+
+export interface CommentModerationResponse {
+  id: number
+  moderationStatus: CommentModerationStatus
+  moderationReason?: string
+  moderationCategories?: string
+  moderationConfidence?: number
+  moderatedAt?: string
+}
+
 export interface Comment {
   id: number
   postId?: number
@@ -19,6 +34,11 @@ export interface Comment {
   likeCount: number
   createdAt: string
   updatedAt: string
+  moderationStatus: CommentModerationStatus
+  moderationReason?: string
+  moderationCategories?: string
+  moderationConfidence?: number
+  moderatedAt?: string
 }
 
 export interface CommentListRequest {

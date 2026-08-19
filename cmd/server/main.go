@@ -7,6 +7,7 @@ import (
 	"github.com/zyj/my-blog/internal/repo"
 	"github.com/zyj/my-blog/internal/router"
 	"github.com/zyj/my-blog/internal/service"
+	"github.com/zyj/my-blog/internal/task"
 	"github.com/zyj/my-blog/pkg/constant"
 	"github.com/zyj/my-blog/pkg/utils"
 )
@@ -39,6 +40,14 @@ func main() {
 	if err := repo.InitRedis(context.Background()); err != nil {
 		panic(err)
 	}
+
+	task.InitClient() // 全局client被初始化，拿到*asynq.Client，建立redis连接
+	defer func() {
+		if err := task.CloseClient(); err != nil {
+			log.Printf("close asynq client failed: %v", err)
+		}
+	}()
+
 	defer func() {
 		if err := repo.CloseRedis(); err != nil {
 			log.Printf("close redis failed: %v", err)

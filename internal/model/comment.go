@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/zyj/my-blog/pkg/constant"
 	"gorm.io/gorm"
 )
@@ -20,6 +22,11 @@ type Comment struct {
 	Depth         uint8               `gorm:"not null;default:0"`
 	ReplyCount    uint64              `gorm:"not null;default:0"`
 	LikeCount     uint64              `gorm:"not null;default:0"`
+	ModerationStatus     constant.ModerationStatus `gorm:"size:20;not null;default:approved;index"`
+	ModerationReason     string                    `gorm:"type:text"`
+	ModerationCategories string                    `gorm:"type:text"`
+	ModerationConfidence float64
+	ModeratedAt          *time.Time
 }
 
 func (c *Comment) BeforeCreate(_ *gorm.DB) error {
@@ -28,6 +35,9 @@ func (c *Comment) BeforeCreate(_ *gorm.DB) error {
 	}
 	if c.TargetID == 0 && c.PostID != nil && *c.PostID > 0 {
 		c.TargetID = *c.PostID
+	}
+	if c.ModerationStatus == "" {
+		c.ModerationStatus = constant.ModerationPending
 	}
 
 	return nil

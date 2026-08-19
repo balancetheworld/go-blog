@@ -1,7 +1,7 @@
 'use client'
 
 import type { FormEvent } from 'react'
-import type { CommentTargetType } from '@/models/comment'
+import type { Comment, CommentTargetType } from '@/models/comment'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/auth-context'
 interface CommentInputProps {
   targetType: CommentTargetType
   targetID: number
-  onCreated: () => void | Promise<void>
+  onCreated: (comment: Comment) => void | Promise<void>
   onCancel?: () => void
   replyToName?: string
   autoFocus?: boolean
@@ -43,13 +43,13 @@ export function CommentInput({
     setSubmitting(true)
 
     try {
-      await createComment({
+      const createdComment = await createComment({
         targetType,
         targetId: targetID,
         content: value,
       })
       setContent('')
-      await onCreated()
+      await onCreated(createdComment)
       toast.success(replyToName ? t('replyPublished') : t('published'))
     }
     catch {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/zyj/my-blog/internal/model"
 	"github.com/zyj/my-blog/pkg/constant"
@@ -12,14 +13,15 @@ import (
 )
 
 type CommentListFilter struct {
-	TargetType   constant.TargetType
-	TargetID     uint
-	AuthorID     uint
-	Keyword      string
-	TopLevelOnly bool
-	Offset       int
-	Limit        int
-	NewestFirst  bool
+	TargetType       constant.TargetType
+	TargetID         uint
+	AuthorID         uint
+	Keyword          string
+	ModerationStatus constant.ModerationStatus
+	TopLevelOnly     bool
+	Offset           int
+	Limit            int
+	NewestFirst      bool
 }
 
 func CreateComment(ctx context.Context, comment *model.Comment) error {
@@ -31,20 +33,115 @@ func CreateComment(ctx context.Context, comment *model.Comment) error {
 		if err := tx.Omit("Author", "ReplyToUser").Create(comment).Error; err != nil {
 			return err
 		}
+		task := model.AITask{
+			TaskType:   constant.AITaskCommentModeration,
+			TargetType: constant.TargetComment,
+			TargetID:   comment.ID,
+			Status:     constant.AITaskQueued,
+		}
+		if err := tx.Create(&task).Error; err != nil {
+			return err
+		}
 
-		if comment.ParentID != nil {
-			result := tx.Model(&model.Comment{}).
-				Where("id = ?", *comment.ParentID).
-				UpdateColumn("reply_count", gorm.Expr("reply_count + ?", 1))
-			if result.Error != nil {
-				return result.Error
+		return nil
+	})
+}
+
+func UpdateCommentModeration(
+	ctx context.Context,
+	id uint,
+	status constant.ModerationStatus,
+	reason string,
+) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var comment model.Comment
+		if err := tx.First(&comment, id).Error; err != nil {
+			return err
+		}
+
+		if comment.ModerationStatus != constant.ModerationApproved && status == constant.ModerationApproved {
+			if err := updateTargetCommentCount(tx, comment.TargetType, comment.TargetID, 1); err != nil {
+				return err
 			}
-			if result.RowsAffected == 0 {
-				return gorm.ErrRecordNotFound
+			if comment.ParentID != nil {
+				if err := updateCommentReplyCount(tx, *comment.ParentID, 1); err != nil {
+					return err
+				}
+			}
+		}
+		if comment.ModerationStatus == constant.ModerationApproved && status != constant.ModerationApproved {
+			if err := updateTargetCommentCount(tx, comment.TargetType, comment.TargetID, -1); err != nil {
+				return err
+			}
+			if comment.ParentID != nil {
+				if err := updateCommentReplyCount(tx, *comment.ParentID, -1); err != nil {
+					return err
+				}
 			}
 		}
 
-		return updateTargetCommentCount(tx, comment.TargetType, comment.TargetID, 1)
+		return tx.Model(&model.Comment{}).
+			Where("id = ?", id).
+			Updates(map[string]any{
+				"moderation_status": status,
+				"moderation_reason": reason,
+				"moderated_at":      time.Now(),
+			}).Error
+	})
+}
+
+func UpdateCommentModerationResult(
+	ctx context.Context,
+	id uint,
+	status constant.ModerationStatus,
+	reason string,
+	categories string,
+	confidence float64,
+) error {
+	if db == nil {
+		return errors.New("database is not initialized")
+	}
+
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var comment model.Comment
+		if err := tx.First(&comment, id).Error; err != nil {
+			return err
+		}
+
+		if comment.ModerationStatus != constant.ModerationApproved && status == constant.ModerationApproved {
+			if err := updateTargetCommentCount(tx, comment.TargetType, comment.TargetID, 1); err != nil {
+				return err
+			}
+			if comment.ParentID != nil {
+				if err := updateCommentReplyCount(tx, *comment.ParentID, 1); err != nil {
+					return err
+				}
+			}
+		}
+		if comment.ModerationStatus == constant.ModerationApproved && status != constant.ModerationApproved {
+			if err := updateTargetCommentCount(tx, comment.TargetType, comment.TargetID, -1); err != nil {
+				return err
+			}
+			if comment.ParentID != nil {
+				if err := updateCommentReplyCount(tx, *comment.ParentID, -1); err != nil {
+					return err
+				}
+			}
+		}
+
+		return tx.Model(&model.Comment{}).
+			Where("id = ?", id).
+			Updates(map[string]any{
+				"moderation_status":     status,
+				"moderation_reason":     reason,
+				"moderation_categories": categories,
+				"moderation_confidence": confidence,
+				"moderated_at":          time.Now(),
+			}).Error
 	})
 }
 
@@ -81,6 +178,9 @@ func ListComments(
 	if filter.AuthorID > 0 {
 		query = query.Where("author_id = ?", filter.AuthorID)
 	}
+	if filter.ModerationStatus != "" {
+		query = query.Where("moderation_status = ?", filter.ModerationStatus)
+	}
 	if filter.TopLevelOnly {
 		query = query.Where("parent_id IS NULL")
 	}
@@ -113,16 +213,22 @@ func ListComments(
 func ListCommentReplies(
 	ctx context.Context,
 	parentID uint,
+	moderationStatus constant.ModerationStatus,
 ) ([]model.Comment, error) {
 	if db == nil {
 		return nil, errors.New("database is not initialized")
 	}
 
-	var comments []model.Comment
-	err := db.WithContext(ctx).
+	query := db.WithContext(ctx).
 		Preload("Author").
 		Preload("ReplyToUser").
-		Where("parent_id = ?", parentID).
+		Where("parent_id = ?", parentID)
+	if moderationStatus != "" {
+		query = query.Where("moderation_status = ?", moderationStatus)
+	}
+
+	var comments []model.Comment
+	err := query.
 		Order("created_at ASC, id ASC").
 		Find(&comments).
 		Error
@@ -155,20 +261,21 @@ func DeleteComment(ctx context.Context, comment model.Comment) (int64, error) {
 			return nil
 		}
 
+		var approvedCount int64
+		if err := query.
+			Where("moderation_status = ?", constant.ModerationApproved).
+			Count(&approvedCount).Error; err != nil {
+			return err
+		}
+
 		result := tx.Delete(&model.Comment{}, ids)
 		if result.Error != nil {
 			return result.Error
 		}
 		deletedCount = result.RowsAffected
 
-		if comment.ParentID != nil {
-			if err := tx.Model(&model.Comment{}).
-				Where("id = ?", *comment.ParentID).
-				UpdateColumn(
-					"reply_count",
-					gorm.Expr("CASE WHEN reply_count > 0 THEN reply_count - 1 ELSE 0 END"),
-				).
-				Error; err != nil {
+		if comment.ParentID != nil && comment.ModerationStatus == constant.ModerationApproved {
+			if err := updateCommentReplyCount(tx, *comment.ParentID, -1); err != nil {
 				return err
 			}
 		}
@@ -177,7 +284,7 @@ func DeleteComment(ctx context.Context, comment model.Comment) (int64, error) {
 			tx,
 			comment.TargetType,
 			comment.TargetID,
-			-deletedCount,
+			-approvedCount,
 		)
 	})
 
@@ -236,5 +343,30 @@ func updateTargetCommentCount(
 			Error
 	}
 
+	return nil
+}
+
+func updateCommentReplyCount(tx *gorm.DB, commentID uint, delta int64) error {
+	var expression clause.Expr
+	if delta >= 0 {
+		expression = gorm.Expr("reply_count + ?", delta)
+	} else {
+		amount := -delta
+		expression = gorm.Expr(
+			"CASE WHEN reply_count >= ? THEN reply_count - ? ELSE 0 END",
+			amount,
+			amount,
+		)
+	}
+
+	result := tx.Model(&model.Comment{}).
+		Where("id = ?", commentID).
+		UpdateColumn("reply_count", expression)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }

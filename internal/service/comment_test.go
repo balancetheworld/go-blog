@@ -82,6 +82,31 @@ func TestCommentTargetsRepliesAndCounters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if guestComments.Total != 0 || len(guestComments.Items) != 0 {
+		t.Fatalf("unexpected pending comments: %#v", guestComments)
+	}
+	if _, err := ModerateComment(
+		ctx,
+		uint(top.ID),
+		constant.RoleAdmin,
+		dto.UpdateCommentModerationRequest{Status: constant.ModerationApproved},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	guestComments, err = ListComments(
+		ctx,
+		dto.CommentListRequest{
+			TargetType: constant.TargetPost,
+			TargetID:   post.ID,
+		},
+		0,
+		constant.RoleGuest,
+		0,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if guestComments.Total != 1 || len(guestComments.Items) != 1 {
 		t.Fatalf("unexpected guest comments: %#v", guestComments)
 	}
@@ -102,6 +127,42 @@ func TestCommentTargetsRepliesAndCounters(t *testing.T) {
 	}
 	if reply.ParentID == nil || *reply.ParentID != top.ID || reply.Depth != 1 {
 		t.Fatalf("unexpected reply: %#v", reply)
+	}
+
+	replies, err := ListCommentReplies(
+		ctx,
+		uint(top.ID),
+		0,
+		constant.RoleGuest,
+		0,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(replies) != 0 {
+		t.Fatalf("unexpected pending replies: %#v", replies)
+	}
+	if _, err := ModerateComment(
+		ctx,
+		uint(reply.ID),
+		constant.RoleAdmin,
+		dto.UpdateCommentModerationRequest{Status: constant.ModerationApproved},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	replies, err = ListCommentReplies(
+		ctx,
+		uint(top.ID),
+		0,
+		constant.RoleGuest,
+		0,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(replies) != 1 || replies[0].ID != reply.ID {
+		t.Fatalf("unexpected approved replies: %#v", replies)
 	}
 
 	nestedReply, err := CreateComment(
@@ -147,7 +208,7 @@ func TestCommentTargetsRepliesAndCounters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if countedPost.CommentCount != 3 || countedPost.Heat != 15 {
+	if countedPost.CommentCount != 2 || countedPost.Heat != 10 {
 		t.Fatalf(
 			"unexpected post counters: comments=%d heat=%v",
 			countedPost.CommentCount,
@@ -222,6 +283,14 @@ func TestDiaryCommentCounter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := ModerateComment(
+		ctx,
+		uint(comment.ID),
+		constant.RoleAdmin,
+		dto.UpdateCommentModerationRequest{Status: constant.ModerationApproved},
+	); err != nil {
+		t.Fatal(err)
+	}
 
 	countedDiary, err := repo.GetDiaryByID(ctx, diary.ID)
 	if err != nil {
@@ -285,6 +354,14 @@ func TestGuestbookComments(t *testing.T) {
 	}
 	if created.TargetType != constant.TargetGuestbook || created.TargetID != 1 {
 		t.Fatalf("unexpected guestbook comment: %#v", created)
+	}
+	if _, err := ModerateComment(
+		ctx,
+		uint(created.ID),
+		constant.RoleAdmin,
+		dto.UpdateCommentModerationRequest{Status: constant.ModerationApproved},
+	); err != nil {
+		t.Fatal(err)
 	}
 
 	comments, err := ListComments(

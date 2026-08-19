@@ -86,7 +86,7 @@ export default async function CommentsPage({
       </form>
 
       <div className="overflow-x-auto border-y border-black/10 dark:border-white/10">
-        <table className="w-full min-w-[880px] text-left text-sm">
+        <table className="w-full min-w-[1040px] text-left text-sm">
           <thead className="text-neutral-500">
             <tr>
               <th className="px-3 py-3">{t('content')}</th>
@@ -94,6 +94,8 @@ export default async function CommentsPage({
               <th className="px-3 py-3">{t('target')}</th>
               <th className="px-3 py-3">{t('depth')}</th>
               <th className="px-3 py-3">{t('time')}</th>
+              <th className="px-3 py-3">{t('moderationStatus')}</th>
+              <th className="px-3 py-3">{t('moderationResult')}</th>
               <th className="px-3 py-3">{t('actions')}</th>
             </tr>
           </thead>
@@ -143,6 +145,25 @@ export default async function CommentsPage({
                   {new Date(comment.createdAt).toLocaleString(locale)}
                 </td>
                 <td className="px-3 py-4">
+                  {t(comment.moderationStatus)}
+                </td>
+                <td className="max-w-sm px-3 py-4">
+                  <p className="whitespace-pre-wrap break-words">
+                    {comment.moderationReason || '-'}
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    {t('categories')}
+                    {': '}
+                    {comment.moderationCategories || '-'}
+                    {' · '}
+                    {t('confidence')}
+                    {': '}
+                    {comment.moderationConfidence === undefined
+                      ? '-'
+                      : `${Math.round(comment.moderationConfidence * 100)}%`}
+                  </p>
+                </td>
+                <td className="px-3 py-4">
                   <CommentDeleteButton commentID={comment.id} />
                 </td>
               </tr>
@@ -150,7 +171,7 @@ export default async function CommentsPage({
 
             {result.items.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-12 text-center text-neutral-500">
+                <td colSpan={8} className="px-3 py-12 text-center text-neutral-500">
                   {t('empty')}
                 </td>
               </tr>

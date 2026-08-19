@@ -31,6 +31,11 @@ type AdminCommentListRequest struct {
 	PageSize   int                 `query:"page_size" vd:"$ == 0 || ($ >= 1 && $ <= 100)"`
 }
 
+type UpdateCommentModerationRequest struct {
+	Status constant.ModerationStatus `json:"status" vd:"in($, 'approved', 'rejected', 'hidden')"`
+	Reason string                    `json:"reason" vd:"len($) <= 500"`
+}
+
 type CommentResponse struct {
 	ID          uint64              `json:"id"`
 	PostID      uint64              `json:"post_id,omitempty"`
@@ -46,6 +51,11 @@ type CommentResponse struct {
 	LikeCount   uint64              `json:"like_count"`
 	CreatedAt   time.Time           `json:"created_at"`
 	UpdatedAt   time.Time           `json:"updated_at"`
+	ModerationStatus     constant.ModerationStatus `json:"moderation_status"`
+	ModerationReason     string                    `json:"moderation_reason,omitempty"`
+	ModerationCategories string                    `json:"moderation_categories,omitempty"`
+	ModerationConfidence float64                   `json:"moderation_confidence,omitempty"`
+	ModeratedAt          *time.Time                `json:"moderated_at,omitempty"`
 }
 
 type CommentListResponse struct {
@@ -53,4 +63,11 @@ type CommentListResponse struct {
 	Total    int64             `json:"total"`
 	Page     int               `json:"page"`
 	PageSize int               `json:"page_size"`
+}
+
+type CommentModerationResponse struct {
+	ID               uint64                    `json:"id"`
+	ModerationStatus constant.ModerationStatus `json:"moderation_status"`
+	ModerationReason string                    `json:"moderation_reason,omitempty"`
+	ModeratedAt      *time.Time                `json:"moderated_at,omitempty"`
 }

@@ -1,12 +1,13 @@
 'use client'
 
 import type {
+  Comment,
   CommentContentTargetType,
   CommentListResponse,
 } from '@/models/comment'
 import { useTranslations } from 'next-intl'
-import { useCallback, useEffect, useState } from 'react'
-import { listComments } from '@/api/comment'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getCommentModeration, listComments } from '@/api/comment'
 import { CommentInput } from './comment-input'
 import { CommentItem } from './comment-item'
 
@@ -24,6 +25,8 @@ export function CommentSection({
   const t = useTranslations('Comments')
   const [page, setPage] = useState(1)
   const [result, setResult] = useState<CommentListResponse | null>(null)
+  const [pendingComments, setPendingComments] = useState<Comment[]>([])
+  const pendingCommentsRef = useRef<Comment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -51,13 +54,65 @@ export function CommentSection({
     void loadComments()
   }, [loadComments])
 
-  async function handleCreated() {
-    if (page === 1) {
-      await loadComments()
+  useEffect(() => {
+    if (pendingComments.length === 0)
       return
+
+    let cancelled = false
+
+    async function pollModeration() {
+      const updates = await Promise.all(
+        pendingCommentsRef.current.map(async (comment) => {
+          if (comment.moderationStatus !== 'pending' && comment.moderationStatus !== 'manual_review')
+            return comment
+
+          try {
+            const moderation = await getCommentModeration(comment.id)
+            return {
+              ...comment,
+              moderationStatus: moderation.moderationStatus,
+              moderationReason: moderation.moderationReason,
+              moderatedAt: moderation.moderatedAt,
+            }
+          }
+          catch {
+            return comment
+          }
+        }),
+      )
+
+      if (cancelled)
+        return
+
+      const approved = updates.some(comment => comment.moderationStatus === 'approved')
+      const nextPendingComments = updates.filter(
+        comment => comment.moderationStatus !== 'approved',
+      )
+      pendingCommentsRef.current = nextPendingComments
+      setPendingComments(nextPendingComments)
+      if (approved)
+        await loadComments()
     }
 
-    setPage(1)
+    void pollModeration()
+    const timer = window.setInterval(() => {
+      void pollModeration()
+    }, 2000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [loadComments, pendingComments.length])
+
+  async function handleCreated(comment: Comment) {
+    setPendingComments((current) => {
+      const next = [comment, ...current]
+      pendingCommentsRef.current = next
+      return next
+    })
+    if (page !== 1)
+      setPage(1)
   }
 
   async function handleDeleted() {
@@ -69,6 +124,11 @@ export function CommentSection({
     await loadComments()
   }
 
+  const visibleComments = [
+    ...pendingComments,
+    ...(result?.items ?? []),
+  ]
+
   const totalPages = result
     ? Math.max(1, Math.ceil(result.total / result.pageSize))
     : 1
@@ -77,7 +137,7 @@ export function CommentSection({
     <section aria-labelledby="comments-title" className="article-comments">
       <div className="article-comments-head">
         <h2 id="comments-title">{t('title')}</h2>
-        <span>{t('count', { count: result?.total ?? 0 })}</span>
+        <span>{t('count', { count: visibleComments.length })}</span>
       </div>
 
       {loading && (
@@ -88,13 +148,13 @@ export function CommentSection({
         <p className="comment-state comment-state-error">{error}</p>
       )}
 
-      {!loading && !error && result?.items.length === 0 && (
+      {!loading && !error && visibleComments.length === 0 && (
         <p className="comment-state">{t('empty')}</p>
       )}
 
-      {!loading && !error && result && result.items.length > 0 && (
+      {!loading && !error && visibleComments.length > 0 && (
         <div className="comment-list">
-          {result.items.map(comment => (
+          {visibleComments.map(comment => (
             <CommentItem
               key={comment.id}
               comment={comment}

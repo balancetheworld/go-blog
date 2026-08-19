@@ -3,6 +3,7 @@ import type {
   Comment,
   CommentListRequest,
   CommentListResponse,
+  CommentModerationResponse,
   CreateCommentRequest,
 } from '@/models/comment'
 import type { Resp } from '@/models/resp'
@@ -36,6 +37,15 @@ export async function createComment(
     req,
   )
 
+  return unwrapResponse(response.data)
+}
+
+export async function getCommentModeration(
+  id: number,
+): Promise<CommentModerationResponse> {
+  const response = await axiosClient.get<Resp<CommentModerationResponse>>(
+    `/comment/${id}/moderation`,
+  )
   return unwrapResponse(response.data)
 }
 

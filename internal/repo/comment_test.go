@@ -21,6 +21,7 @@ func TestCommentCreateListAndDelete(t *testing.T) {
 		&model.Label{},
 		&model.Post{},
 		&model.Comment{},
+		&model.AITask{},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -60,6 +61,29 @@ func TestCommentCreateListAndDelete(t *testing.T) {
 		Content:  "content",
 	}
 	if err := CreateComment(context.Background(), &comment); err != nil {
+		t.Fatal(err)
+	}
+	var task model.AITask
+	if err := database.
+		Where(
+			"task_type = ? AND target_type = ? AND target_id = ?",
+			constant.AITaskCommentModeration,
+			constant.TargetComment,
+			comment.ID,
+		).
+		First(&task).
+		Error; err != nil {
+		t.Fatal(err)
+	}
+	if task.Status != constant.AITaskQueued {
+		t.Fatalf("unexpected task status: %s", task.Status)
+	}
+	if err := UpdateCommentModeration(
+		context.Background(),
+		comment.ID,
+		constant.ModerationApproved,
+		"",
+	); err != nil {
 		t.Fatal(err)
 	}
 
