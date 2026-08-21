@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react'
 import type { Post } from '@/models/post'
-import hljs from 'highlight.js/lib/common'
 import { Heart } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -12,7 +11,6 @@ import { togglePostLike } from '@/api/post'
 import { ArticleLikeRive } from '@/components/design/article-like-rive'
 import { useAuth } from '@/contexts/auth-context'
 import { codeLanguageLabels } from '@/lib/code-language'
-import { sanitizePostHTML } from '@/lib/post-html'
 
 interface BlogPostProps {
   post: Post
@@ -65,7 +63,7 @@ export function BlogPost({ post, children }: BlogPostProps) {
   const contentRef = useRef<HTMLDivElement>(null)
   const authorName
     = post.author.nickname || post.author.username
-  const content = sanitizePostHTML(post.content)
+  const content = post.content
 
   useEffect(() => {
     return () => {
@@ -79,67 +77,82 @@ export function BlogPost({ post, children }: BlogPostProps) {
     if (!element)
       return
 
-    element.querySelectorAll<HTMLPreElement>('pre').forEach((pre) => {
-      if (pre.parentElement?.classList.contains('article-code-block'))
+    const codeBlocks = element.querySelectorAll<HTMLPreElement>('pre')
+    if (!Array.from(codeBlocks).some(pre => pre.querySelector('code')))
+      return
+
+    let cancelled = false
+
+    void import('highlight.js/lib/common').then(({ default: hljs }) => {
+      if (cancelled)
         return
 
-      const block = pre.querySelector<HTMLElement>('code')
-      if (!block)
-        return
+      codeBlocks.forEach((pre) => {
+        if (pre.parentElement?.classList.contains('article-code-block'))
+          return
 
-      delete block.dataset.highlighted
-      hljs.highlightElement(block)
+        const block = pre.querySelector<HTMLElement>('code')
+        if (!block)
+          return
 
-      const wrapper = document.createElement('div')
-      wrapper.className = 'article-code-block'
+        delete block.dataset.highlighted
+        hljs.highlightElement(block)
 
-      const toolbar = document.createElement('div')
-      toolbar.className = 'article-code-toolbar'
+        const wrapper = document.createElement('div')
+        wrapper.className = 'article-code-block'
 
-      const dots = document.createElement('div')
-      dots.className = 'article-code-dots'
-      ;['red', 'yellow', 'green'].forEach((color) => {
-        const dot = document.createElement('span')
-        dot.className = `article-code-dot is-${color}`
-        dots.appendChild(dot)
-      })
-      toolbar.appendChild(dots)
+        const toolbar = document.createElement('div')
+        toolbar.className = 'article-code-toolbar'
 
-      const language = getCodeLanguage(block)
-      if (language) {
-        const label = document.createElement('span')
-        label.className = 'article-code-language'
-        label.textContent = language
-        toolbar.appendChild(label)
-      }
-
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.className = 'article-code-copy'
-      button.textContent = t('copyCode')
-      button.title = t('copyCode')
-      button.addEventListener('click', () => {
-        void copyCode(block.textContent ?? '').then((copied) => {
-          if (!copied) {
-            toast.error(t('copyCodeFailed'))
-            return
-          }
-
-          button.textContent = t('copied')
-          window.setTimeout(() => {
-            button.textContent = t('copyCode')
-          }, 1200)
+        const dots = document.createElement('div')
+        dots.className = 'article-code-dots'
+        ;['red', 'yellow', 'green'].forEach((color) => {
+          const dot = document.createElement('span')
+          dot.className = `article-code-dot is-${color}`
+          dots.appendChild(dot)
         })
+        toolbar.appendChild(dots)
+
+        const language = getCodeLanguage(block)
+        if (language) {
+          const label = document.createElement('span')
+          label.className = 'article-code-language'
+          label.textContent = language
+          toolbar.appendChild(label)
+        }
+
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'article-code-copy'
+        button.textContent = t('copyCode')
+        button.title = t('copyCode')
+        button.addEventListener('click', () => {
+          void copyCode(block.textContent ?? '').then((copied) => {
+            if (!copied) {
+              toast.error(t('copyCodeFailed'))
+              return
+            }
+
+            button.textContent = t('copied')
+            window.setTimeout(() => {
+              button.textContent = t('copyCode')
+            }, 1200)
+          })
+        })
+        toolbar.appendChild(button)
+
+        const parent = pre.parentNode
+        if (!parent)
+          return
+
+        parent.replaceChild(wrapper, pre)
+        wrapper.append(toolbar, pre)
       })
-      toolbar.appendChild(button)
-
-      const parent = pre.parentNode
-      if (!parent)
-        return
-
-      parent.replaceChild(wrapper, pre)
-      wrapper.append(toolbar, pre)
     })
+
+    return () => {
+      cancelled = true
+    }
   }, [content])
 
   async function handleLike() {

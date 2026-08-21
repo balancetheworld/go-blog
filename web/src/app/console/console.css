@@ -653,7 +653,14 @@ body:has(.console-shell) [data-radix-portal] [role="dialog"] select {
   border-radius: 8px;
   background: var(--console-panel);
   box-shadow: var(--console-shadow);
+  color: inherit;
+  text-decoration: none;
 }
+
+.console-stat-card:focus-visible {
+    outline: 2px solid var(--console-accent);
+    outline-offset: 2px;
+  }
 
 .console-stat-card > div {
   display: flex;

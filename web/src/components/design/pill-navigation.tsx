@@ -274,7 +274,7 @@ export function PillNavigation() {
                         <LogoutDialog
                           onLoggedOut={closeMobileNavigation}
                           trigger={(
-                            <button type="button" className="pill-link">
+                            <button type="button" className="pill-link" onClick={closeMobileNavigation}>
                               <LogOut className="pill-icon" aria-hidden="true" />
                               <span>{common('logout')}</span>
                             </button>

@@ -10,37 +10,53 @@ import {
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 
+interface DashbardProps {
+  postCount: number
+  commentCount: number
+  userCount: number
+  draftCount: number
+}
 interface Statistic {
   label: 'postCount' | 'commentCount' | 'userCount' | 'draftCount'
-  value: string
+  value: number
+  href: string
   icon: LucideIcon
 }
 
-const statistics: Statistic[] = [
-  {
-    label: 'postCount',
-    value: '--',
-    icon: FileText,
-  },
-  {
-    label: 'commentCount',
-    value: '--',
-    icon: MessageSquare,
-  },
-  {
-    label: 'userCount',
-    value: '--',
-    icon: Users,
-  },
-  {
-    label: 'draftCount',
-    value: '--',
-    icon: FilePenLine,
-  },
-]
-
-export function Dashboard() {
+export function Dashboard({
+  postCount,
+  commentCount,
+  userCount,
+  draftCount,
+}: DashbardProps) {
   const t = useTranslations('Console.dashboard')
+
+  const statistics: Statistic[] = [
+    {
+      label: 'postCount',
+      value: postCount,
+      href: '/console/posts',
+      icon: FileText,
+    },
+    {
+      label: 'commentCount',
+      value: commentCount,
+      href: '/console/comments',
+      icon: MessageSquare,
+    },
+    {
+      label: 'userCount',
+      value: userCount,
+      href: '/console/users',
+      icon: Users,
+    },
+    {
+      label: 'draftCount',
+      value: draftCount,
+      href: '/console/posts/drafts',
+      icon: FilePenLine,
+    },
+  ]
 
   return (
     <div className="console-dashboard">
@@ -62,21 +78,19 @@ export function Dashboard() {
             icon: Icon,
             label,
             value,
+            href,
           }) => (
-            <div
+            <Link
               key={label}
+              href={href}
               className="console-stat-card"
             >
               <div>
-                <span>
-                  {t(label)}
-                </span>
+                <span>{t(label)}</span>
                 <Icon aria-hidden="true" />
               </div>
-              <p>
-                {value}
-              </p>
-            </div>
+              <p>{value}</p>
+            </Link>
           ))}
         </div>
       </section>

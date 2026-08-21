@@ -6,6 +6,7 @@ import {
   PostServerError,
 } from '@/api/post.server'
 import { CommentSection } from '@/components/comment'
+import { sanitizePostHTML } from '@/lib/post-html'
 import { BlogPost } from './blog-post'
 
 // 定义页面组件入参的TS接口 PostPageProps
@@ -73,9 +74,14 @@ export default async function PostPage({
     notFound()
   }
 
+  const sanitizedPost = {
+    ...post,
+    content: sanitizePostHTML(post.content),
+  }
+
   return (
     <main className="article-detail-main">
-      <BlogPost post={post}>
+      <BlogPost post={sanitizedPost}>
         <CommentSection
           targetType={post.type === 'page' ? 'page' : 'post'}
           targetID={post.id}
